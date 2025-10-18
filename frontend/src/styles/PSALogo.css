@@ -1,0 +1,17 @@
+.psa-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.psa-logo-text {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #A296ca;
+}
+
+@media (max-width: 768px) {
+  .psa-logo-text {
+    font-size: 2.5rem;
+  }
+}
