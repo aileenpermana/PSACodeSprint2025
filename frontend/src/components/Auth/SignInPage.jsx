@@ -1,25 +1,55 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import PSALogo from './PSALogo';
+import { signIn } from '../../services/supabaseClient';
+import { useNavigate } from 'react-router-dom';
+import PSALogo from '../PSALogo';
 import './AuthPages.css';
+//import '../../styles/maritime-theme.css';
 
 const SignInPage = () => {
   const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
-  const handleChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
   };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Sign in data:', formData);
-    // TODO: Integrate with Firebase Authentication
+    
+    try {
+      setLoading(true);
+      setError('');
+
+      // Call backend - supabaseClient.js 
+      const { data, error: signInError } = await signIn(
+        formData.email,
+        formData.password
+      );
+
+      if (signInError) {
+        setError(signInError);
+        return;
+      }
+
+      // Success -> Redirect to dashboard
+      console.log('Sign in successful:', data);
+      navigate('/dashboard');
+
+    } catch (err) {
+      console.error('Sign in error:', err);
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

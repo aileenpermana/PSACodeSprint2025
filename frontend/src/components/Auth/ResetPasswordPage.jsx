@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PSALogo from './PSALogo';
+import PSALogo from '../PSALogo';
 import './AuthPages.css';
 
 const ResetPasswordPage = () => {
