@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PSALogo from '../PSALogo';
-import './AuthPages.css';
-import { signUp } from '../../services/supabaseClient';  
+import '../AuthPages.css';
+import { signUp, supabase } from '../../services/supabaseClient';  
 
 const SignUpPage = () => {
   const navigate = useNavigate();

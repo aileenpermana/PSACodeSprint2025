@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { signIn } from '../../services/supabaseClient';
-import { useNavigate } from 'react-router-dom';
 import PSALogo from '../PSALogo';
-import './AuthPages.css';
+import '../AuthPages.css';
 //import '../../styles/maritime-theme.css';
 
 const SignInPage = () => {
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -17,7 +17,15 @@ const SignInPage = () => {
   });
 
   const handleChange = (e) => {
+     // Add safety check
+    if (!e || !e.target) {
+      console.error('Event target is undefined');
+      return;
+    }
     const { name, value } = e.target;
+
+    console.log('Field changed:', name, '=', value);
+
     setFormData(prev => ({ ...prev, [name]: value }));
     setError('');
   };
@@ -42,7 +50,7 @@ const SignInPage = () => {
 
       // Success -> Redirect to dashboard
       console.log('Sign in successful:', data);
-      navigate('/dashboard');
+      window.location.href = '/dashboard';
 
     } catch (err) {
       console.error('Sign in error:', err);
@@ -68,8 +76,9 @@ const SignInPage = () => {
                 <label className="input-label">Email</label>
                 <input
                   type="email"
+                  name="email"
                   value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value)}
+                  onChange={handleChange}
                   className="auth-input"
                   placeholder="your.email@psa.com"
                   required
@@ -81,8 +90,9 @@ const SignInPage = () => {
                 <div className="password-input-container">
                   <input
                     type={showPassword ? "text" : "password"}
+                    name="password"
                     value={formData.password}
-                    onChange={(e) => handleChange('password', e.target.value)}
+                    onChange={handleChange}
                     className="auth-input password-input"
                     placeholder="Enter your password"
                     required
