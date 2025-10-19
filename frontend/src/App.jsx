@@ -11,6 +11,11 @@ import ResetPasswordPage from './components/Auth/ResetPasswordPage';
 import ProfileDashboard from './components/Profile/ProfileDashboard';
 import ProfileSetup from './components/Profile/ProfileSetup';
 
+//Exploration Page
+import ExplorePage from './components/Explore/ExplorePage';
+import CareerLiftPage from './components/Explore/CareerLiftPage';
+import ContinentViewPage from './components/Explore/ContinentViewPage';
+
 // Import supabase
 import { supabase } from './services/supabaseClient';
 
@@ -95,9 +100,32 @@ function App() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/explore" 
+          element={
+            <ProtectedRoute>
+              <ExplorePage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/explore/career-lift" 
+          element={
+            <ProtectedRoute>
+              <CareerLiftPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/explore/continent/:divisionId" 
+          element={
+            <ProtectedRoute>
+              <ContinentViewPage />
+            </ProtectedRoute>
+          } 
+        />
 
         {/* Placeholder routes for future pages */}
-        <Route path="/explore" element={<ProtectedRoute><div>Explore Page Coming Soon</div></ProtectedRoute>} />
         <Route path="/mentors" element={<ProtectedRoute><div>Mentors Page Coming Soon</div></ProtectedRoute>} />
         <Route path="/ai-chat" element={<ProtectedRoute><div>AI Chat Coming Soon</div></ProtectedRoute>} />
         <Route path="/achievements" element={<ProtectedRoute><div>Achievements Coming Soon</div></ProtectedRoute>} />
