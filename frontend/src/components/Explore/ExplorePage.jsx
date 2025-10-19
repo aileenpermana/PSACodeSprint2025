@@ -8,6 +8,8 @@ import WorldMap from './WorldMap';
 import { getCurrentUser } from '../../services/supabaseClient';
 import { getCompleteUserProfile } from '../../services/dataService';
 import { getCareerRecommendations } from '../../services/openaiService';
+import CareerLift from './CareerLift';
+
 
 const ExplorePage = () => {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ const ExplorePage = () => {
   const [loading, setLoading] = useState(true);
   const [aiRecommendations, setAiRecommendations] = useState(null);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [viewMode, setViewMode] = useState('world'); // 'world' or 'lift'
 
   // Departments as continents
   const departments = [
@@ -105,11 +108,6 @@ const ExplorePage = () => {
   // Navigate to continent detail view
   const handleContinentClick = (divisionId) => {
     navigate(`/explore/continent/${divisionId}`);
-  };
-
-  // Navigate to career lift
-  const handleCareerLiftClick = () => {
-    navigate('/explore/career-lift');
   };
 
   // Format AI recommendations for better display
@@ -256,26 +254,88 @@ const ExplorePage = () => {
   return (
     <Layout>
       <div style={{ padding: '2rem 0' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
+        {/* Header with View Toggle */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '2rem',
+        padding: '0 2rem'
+      }}>
+        <div>
           <h1 style={{ 
-            fontSize: '2.5rem', 
-            fontWeight: '700',
+            fontSize: '2rem', 
             marginBottom: '0.5rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '1rem',
-            color: 'var(--psa-white)'
+            gap: '1rem'
           }}>
-            <Map size={36} color="var(--psa-secondary)" />
-            Explore Your Journey
+            <Compass size={32} />
+            Career World
           </h1>
-          <p style={{ fontSize: '1.1rem', opacity: 0.9, color: 'var(--psa-gray)' }}>
-            Navigate through PSA's career continents and discover new opportunities
+          <p style={{ color: '#aaa', fontSize: '0.95rem' }}>
+            Explore career pathways across divisions and levels
           </p>
         </div>
 
+        {/* View Mode Toggle */}
+        <div style={{
+          display: 'flex',
+          gap: '0.5rem',
+          background: 'rgba(162, 150, 202, 0.1)',
+          padding: '0.5rem',
+          borderRadius: '12px',
+          border: '1px solid rgba(162, 150, 202, 0.3)'
+        }}>
+          <button
+            onClick={() => setViewMode('world')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: viewMode === 'world' 
+                ? 'linear-gradient(135deg, #A296ca 0%, #7a6fa0 100%)' 
+                : 'transparent',
+              color: viewMode === 'world' ? '#fff' : '#A296ca',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <Map size={18} />
+            World Map
+          </button>
+          <button
+            onClick={() => setViewMode('lift')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: viewMode === 'lift' 
+                ? 'linear-gradient(135deg, #A296ca 0%, #7a6fa0 100%)' 
+                : 'transparent',
+              color: viewMode === 'lift' ? '#fff' : '#A296ca',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <TrendingUp size={18} />
+            Career Lift
+          </button>
+        </div>
+      </div>
+
         {/* Main Content Grid */}
+        {viewMode === 'world' ? (
         <div style={{
           display: 'grid',
           gridTemplateColumns: '2fr 1fr',
@@ -289,61 +349,6 @@ const ExplorePage = () => {
               onSelectDivision={setSelectedDivision}
               selectedDivision={selectedDivision}
             />
-            
-            {/* Career Lift Button - Below Map */}
-            <div style={{
-              marginTop: '1.5rem',
-              padding: '1.5rem',
-              background: 'linear-gradient(135deg, var(--psa-primary) 0%, #1a1a2e 100%)',
-              borderRadius: '12px',
-              border: '2px solid var(--psa-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={handleCareerLiftClick}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)';
-              e.currentTarget.style.boxShadow = '0 8px 24px rgba(162, 150, 202, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{
-                  width: '60px',
-                  height: '60px',
-                  background: 'var(--psa-secondary)',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem'
-                }}>
-                  🛗
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{
-                    fontSize: '1.3rem',
-                    fontWeight: '700',
-                    color: 'var(--psa-secondary)',
-                    margin: 0,
-                    marginBottom: '0.25rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}>
-                    <TrendingUp size={24} />
-                    Career Lift - Vertical Progression
-                  </h3>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--psa-gray)', margin: 0 }}>
-                    Navigate through management levels and explore vertical career advancement
-                  </p>
-                </div>
-                <ChevronRight size={32} color="var(--psa-secondary)" />
-              </div>
-            </div>
           </div>
 
           {/* Right Sidebar */}
@@ -536,8 +541,20 @@ const ExplorePage = () => {
                 </div>
               </div>
             )}
+
           </div>
         </div>
+        ) : (
+          /* NEW CAREER LIFT VIEW */
+          <div style={{ padding: '0 2rem' }}>
+            <CareerLift
+              currentRole={userData?.user_role}
+              currentLevel={userData?.job_level}
+              department={userData?.department}
+              userData={userData}
+            />
+          </div>
+        )}
       </div>
       
       <style>{`

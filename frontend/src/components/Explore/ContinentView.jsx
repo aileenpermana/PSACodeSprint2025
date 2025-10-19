@@ -1,11 +1,7 @@
-// ============================================
 // CONTINENT VIEW COMPONENT
-// ============================================
-// File: src/components/Explore/ContinentView.jsx
-// ============================================
 
 import React, { useState } from 'react';
-import { Map, Compass, TrendingUp, Users, BookOpen, Award, ChevronRight, Ship, Anchor } from 'lucide-react';
+import { Map, Compass, TrendingUp, Users, BookOpen, Award, ChevronRight, Ship, Anchor, X } from 'lucide-react';
 
 const ContinentView = ({ division, currentDepartment, userData, onNavigate }) => {
   const [selectedRole, setSelectedRole] = useState(null);
@@ -70,7 +66,7 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
     operations: {
       name: 'Operations',
       icon: '⚙️',
-      color: '#FF6B6B',
+      color: 'rgba(232, 180, 249, 0.6)',
       description: 'The heartbeat of PSA - ensuring smooth terminal operations 24/7',
       terrain: 'Bustling ports, cargo terminals, and logistics hubs',
       climate: 'Dynamic, hands-on, mission-critical',
@@ -156,7 +152,7 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
     finance: {
       name: 'Finance',
       icon: '💰',
-      color: '#FFD93D',
+      color: '#B8B5E8',
       description: 'Navigate financial waters and chart PSA\'s economic course',
       terrain: 'Trading floors, boardrooms, and financial markets',
       climate: 'Analytical, strategic, detail-oriented',
@@ -199,7 +195,7 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
     hr: {
       name: 'Human Resources',
       icon: '👥',
-      color: '#FF6B9D',
+      color: '#C1AEDB',
       description: 'Cultivate PSA\'s greatest asset - its people',
       terrain: 'Networks of talent, communities of growth, and pathways of development',
       climate: 'People-focused, collaborative, empathetic',
@@ -284,6 +280,38 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
     }
   };
 
+    const handleNavigateToRole = (role) => {
+    if (userData?.user_role === role.title) {
+      return;
+    }
+
+    const currentSkills = userData?.skills?.map(s => s.skill_name) || [];
+    const requiredSkills = role.keySkills;
+    const missingSkills = requiredSkills.filter(skill => 
+      !currentSkills.some(current => 
+        current.toLowerCase().includes(skill.toLowerCase())
+      )
+    );
+
+    setShowTransitionPath(true);
+    setSelectedRole({
+      ...role,
+      missingSkills,
+      estimatedTime: calculateTransitionTime(missingSkills.length)
+    });
+  };
+
+  const handleViewRoleDetails = (role) => {
+    setSelectedRole(role);
+  };
+
+  const calculateTransitionTime = (skillGapCount) => {
+    if (skillGapCount === 0) return '0-3 months';
+    if (skillGapCount <= 2) return '3-6 months';
+    if (skillGapCount <= 4) return '6-12 months';
+    return '12-18 months';
+  };
+
   const currentDivision = divisionData[division] || divisionData.it;
   const isCurrentDivision = currentDivision.name === currentDepartment;
 
@@ -358,6 +386,46 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
             {currentDivision.description}
           </p>
 
+          {/* ADD THIS NEW SECTION - Navigate button for current continent */}
+          {isCurrentDivision && (
+            <button
+              onClick={() => {
+                // Scroll to roles section
+                const rolesSection = document.querySelector('[class*="roles"]') || 
+                                   document.querySelector('h2');
+                if (rolesSection) {
+                  rolesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'transparent',
+                color: currentDivision.color,
+                border: `2px solid ${currentDivision.color}`,
+                borderRadius: '8px',
+                fontWeight: '600',
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s ease',
+                marginTop: '1rem'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = currentDivision.color;
+                e.currentTarget.style.color = '#000';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = currentDivision.color;
+              }}
+            >
+              <Anchor size={18} />
+              Explore Different Roles Here
+            </button>
+          )}
+
           {/* Continent Info Cards */}
           <div style={{
             display: 'grid',
@@ -407,140 +475,119 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
         </div>
       </div>
 
-      {/* Role Cards Grid */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{
-          fontSize: '1.5rem',
-          fontWeight: '600',
-          color: currentDivision.color,
-          marginBottom: '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
-          <Compass size={24} />
-          Available Positions
-        </h2>
+      {/* Roles Section */}
+        <div id="roles-section" style={{ marginTop: '2rem' }}>
+          <h3 style={{
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: 'var(--psa-secondary)',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <Compass size={24} />
+            Available Roles in {currentDivision.name}
+          </h3>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '1.25rem'
-        }}>
-          {currentDivision.roles.map((role) => (
-            <div
-              key={role.id}
-              onClick={() => setSelectedRole(role.id === selectedRole ? null : role.id)}
-              style={{
-                background: selectedRole === role.id 
-                  ? `linear-gradient(135deg, ${currentDivision.color}40 0%, #2b1d5a 100%)`
-                  : 'linear-gradient(135deg, #2b1d5a 0%, #1a1a2e 100%)',
-                padding: '1.5rem',
-                borderRadius: '12px',
-                border: selectedRole === role.id 
-                  ? `3px solid ${currentDivision.color}`
-                  : '2px solid rgba(162, 150, 202, 0.3)',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-            >
-              {/* Demand Badge */}
-              <div style={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                padding: '0.25rem 0.75rem',
-                background: role.demand === 'Very High' 
-                  ? '#4CAF50' 
-                  : role.demand === 'High' 
-                  ? '#FF9800' 
-                  : '#2196F3',
-                color: '#fff',
-                borderRadius: '12px',
-                fontSize: '0.7rem',
-                fontWeight: '600'
-              }}>
-                {role.demand} Demand
-              </div>
-
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>
-                {role.icon}
-              </div>
-
-              <h3 style={{
-                fontSize: '1.2rem',
-                fontWeight: '700',
-                color: '#fff',
-                marginBottom: '0.5rem'
-              }}>
-                {role.title}
-              </h3>
-
-              <div style={{
-                fontSize: '0.8rem',
-                color: currentDivision.color,
-                fontWeight: '600',
-                marginBottom: '1rem'
-              }}>
-                {role.level}
-              </div>
-
-              <p style={{
-                fontSize: '0.85rem',
-                color: '#aaa',
-                lineHeight: '1.5',
-                marginBottom: '1rem'
-              }}>
-                {role.description}
-              </p>
-
-              <div style={{
-                padding: '0.75rem',
-                background: 'rgba(162, 150, 202, 0.1)',
-                borderRadius: '6px',
-                marginBottom: '0.75rem'
-              }}>
-                <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '0.25rem' }}>
-                  💰 AVG SALARY
-                </div>
-                <div style={{ fontSize: '1rem', fontWeight: '700', color: currentDivision.color }}>
-                  {role.avgSalary}
-                </div>
-              </div>
-
-              {selectedRole === role.id && (
-                <div style={{
-                  marginTop: '1rem',
-                  paddingTop: '1rem',
-                  borderTop: `1px solid ${currentDivision.color}40`
-                }}>
-                  {/* Key Skills */}
-                  <div style={{ marginBottom: '1rem' }}>
+          <div style={{ 
+            display: 'grid', 
+            gap: '1.5rem',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))'
+          }}>
+            {currentDivision.roles.map((role) => {
+              const isCurrentRole = userData?.user_role === role.title;
+              
+              return (
+                <div
+                  key={role.id}
+                  style={{
+                    background: isCurrentRole 
+                      ? 'linear-gradient(135deg, rgba(162, 150, 202, 0.3) 0%, rgba(122, 111, 160, 0.2) 100%)'
+                      : 'var(--psa-primary)',
+                    padding: '1.5rem',
+                    borderRadius: '12px',
+                    border: isCurrentRole 
+                      ? '3px solid var(--psa-secondary)' 
+                      : '2px solid rgba(162, 150, 202, 0.3)',
+                    position: 'relative',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {isCurrentRole && (
                     <div style={{
+                      position: 'absolute',
+                      top: '1rem',
+                      right: '1rem',
+                      background: 'var(--psa-secondary)',
+                      color: '#1d161e',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '20px',
                       fontSize: '0.75rem',
-                      color: currentDivision.color,
-                      fontWeight: '600',
-                      marginBottom: '0.5rem',
+                      fontWeight: '700',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.25rem'
+                      gap: '0.35rem'
                     }}>
-                      <Award size={14} />
-                      KEY SKILLS
+                      <Anchor size={12} />
+                      YOUR PORT
+                    </div>
+                  )}
+
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>
+                      {role.icon}
+                    </div>
+                    <h4 style={{
+                      fontSize: '1.3rem',
+                      fontWeight: '700',
+                      color: '#fff',
+                      marginBottom: '0.5rem'
+                    }}>
+                      {role.title}
+                    </h4>
+                    <div style={{
+                      display: 'inline-block',
+                      padding: '0.35rem 0.75rem',
+                      background: 'rgba(162, 150, 202, 0.2)',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      color: 'var(--psa-secondary)',
+                      fontWeight: '600'
+                    }}>
+                      {role.level}
+                    </div>
+                  </div>
+
+                  <p style={{
+                    fontSize: '0.95rem',
+                    lineHeight: '1.6',
+                    color: '#ccc',
+                    marginBottom: '1.25rem'
+                  }}>
+                    {role.description}
+                  </p>
+
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div style={{
+                      fontSize: '0.85rem',
+                      fontWeight: '600',
+                      color: 'var(--psa-secondary)',
+                      marginBottom: '0.5rem'
+                    }}>
+                      Key Skills:
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {role.keySkills.map((skill, idx) => (
+                      {role.keySkills.map((skill, skillIdx) => (
                         <span
-                          key={idx}
+                          key={skillIdx}
                           style={{
-                            padding: '0.25rem 0.75rem',
-                            background: 'rgba(162, 150, 202, 0.2)',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
+                            padding: '0.4rem 0.75rem',
+                            background: 'var(--psa-accent)',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
                             color: '#fff',
-                            border: '1px solid rgba(162, 150, 202, 0.4)'
+                            border: '1px solid rgba(162, 150, 202, 0.3)'
                           }}
                         >
                           {skill}
@@ -549,101 +596,112 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
                     </div>
                   </div>
 
-                  {/* Growth Path */}
-                  <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ marginBottom: '1.25rem' }}>
                     <div style={{
-                      fontSize: '0.75rem',
-                      color: currentDivision.color,
+                      fontSize: '0.85rem',
                       fontWeight: '600',
+                      color: 'var(--psa-secondary)',
                       marginBottom: '0.5rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.25rem'
-                    }}>
-                      <TrendingUp size={14} />
-                      GROWTH PATH
-                    </div>
-                    <div style={{
-                      fontSize: '0.8rem',
-                      color: '#aaa',
-                      lineHeight: '1.6',
-                      padding: '0.75rem',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      borderRadius: '6px',
-                      borderLeft: `3px solid ${currentDivision.color}`
-                    }}>
-                      {role.growthPath[0]}
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button style={{
-                      flex: 1,
-                      padding: '0.75rem',
-                      background: currentDivision.color,
-                      color: '#000',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontWeight: '600',
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
                       gap: '0.5rem'
                     }}>
-                      <BookOpen size={16} />
-                      Learn More
-                    </button>
-                    {!isCurrentDivision && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowTransitionPath(true);
-                        }}
+                      <TrendingUp size={14} />
+                      Career Path:
+                    </div>
+                    {role.growthPath.map((path, pathIdx) => (
+                      <div
+                        key={pathIdx}
                         style={{
-                          flex: 1,
-                          padding: '0.75rem',
-                          background: 'rgba(162, 150, 202, 0.2)',
-                          color: '#fff',
-                          border: `2px solid ${currentDivision.color}`,
-                          borderRadius: '6px',
-                          fontWeight: '600',
                           fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.5rem'
+                          color: '#aaa',
+                          lineHeight: '1.8'
                         }}
                       >
-                        <Anchor size={16} />
-                        Navigate Here
-                      </button>
-                    )}
+                        {path}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '1rem',
+                    padding: '0.75rem',
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    borderRadius: '6px'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#888' }}>Demand</div>
+                      <div style={{
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        color: role.demand === 'Very High' || role.demand === 'High' ? '#4CAF50' : '#FFA726'
+                      }}>
+                        {role.demand}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#888' }}>Salary Range</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#fff' }}>
+                        {role.avgSalary}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                    <button
+                      onClick={() => handleNavigateToRole(role)}
+                      disabled={isCurrentRole}
+                      style={{
+                        flex: 1,
+                        padding: '0.75rem 1rem',
+                        background: isCurrentRole ? 'rgba(162, 150, 202, 0.3)' : 'linear-gradient(135deg, #A296ca 0%, #7a6fa0 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        fontSize: '0.9rem',
+                        cursor: isCurrentRole ? 'default' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        opacity: isCurrentRole ? 0.7 : 1,
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <Ship size={18} />
+                      {isCurrentRole ? 'Current Role' : 'Navigate Here'}
+                    </button>
+
+                    <button
+                      onClick={() => handleViewRoleDetails(role)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        background: 'transparent',
+                        color: 'var(--psa-secondary)',
+                        border: '2px solid var(--psa-secondary)',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <ChevronRight size={18} />
+                      Details
+                    </button>
                   </div>
                 </div>
-              )}
-
-              {!selectedRole || selectedRole !== role.id ? (
-                <div style={{
-                  marginTop: '1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: currentDivision.color,
-                  fontSize: '0.85rem',
-                  fontWeight: '600'
-                }}>
-                  Click to explore
-                  <ChevronRight size={16} />
-                </div>
-              ) : null}
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
       {/* Transition Path Modal */}
       {showTransitionPath && !isCurrentDivision && (
@@ -789,6 +847,186 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
           <Map size={20} />
           Back to World Map
         </button>
+      {showTransitionPath && selectedRole && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '2rem'
+          }}>
+            <div style={{
+              background: 'var(--psa-dark)',
+              border: '2px solid var(--psa-secondary)',
+              borderRadius: '16px',
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              padding: '2rem'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1.5rem'
+              }}>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: 'var(--psa-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <Ship size={24} />
+                  Chart Your Course
+                </h3>
+                <button
+                  onClick={() => setShowTransitionPath(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    padding: '0.5rem'
+                  }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div style={{
+                padding: '1.5rem',
+                background: 'rgba(162, 150, 202, 0.1)',
+                borderRadius: '12px',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+                  {selectedRole.icon}
+                </div>
+                <h4 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: '#fff' }}>
+                  {selectedRole.title}
+                </h4>
+                <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
+                  {selectedRole.description}
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{
+                  fontSize: '1.1rem',
+                  color: 'var(--psa-secondary)',
+                  marginBottom: '1rem'
+                }}>
+                  Skills to Develop
+                </h4>
+                {selectedRole.missingSkills.length === 0 ? (
+                  <div style={{
+                    padding: '1rem',
+                    background: 'rgba(76, 175, 80, 0.1)',
+                    borderRadius: '8px',
+                    border: '2px solid rgba(76, 175, 80, 0.3)',
+                    color: '#4CAF50',
+                    textAlign: 'center'
+                  }}>
+                    ✓ You already have all the key skills for this role!
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {selectedRole.missingSkills.map((skill, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '0.75rem 1rem',
+                          background: 'var(--psa-accent)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(162, 150, 202, 0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          color: '#fff'
+                        }}
+                      >
+                        <Award size={16} color="var(--psa-secondary)" />
+                        {skill}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{
+                  fontSize: '1.1rem',
+                  color: 'var(--psa-secondary)',
+                  marginBottom: '0.75rem'
+                }}>
+                  Estimated Timeline
+                </h4>
+                <div style={{
+                  padding: '1rem',
+                  background: 'rgba(162, 150, 202, 0.1)',
+                  borderRadius: '8px',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  color: '#fff'
+                }}>
+                  {selectedRole.estimatedTime}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  onClick={() => setShowTransitionPath(false)}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: 'transparent',
+                    border: '2px solid rgba(162, 150, 202, 0.3)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('Create dev plan for:', selectedRole);
+                    setShowTransitionPath(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: 'linear-gradient(135deg, #A296ca 0%, #7a6fa0 100%)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <TrendingUp size={18} />
+                  Create Dev Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

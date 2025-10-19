@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Layout from '../Shared/layout';
 import { getCurrentUser } from '../../services/supabaseClient';
-import { getCompleteUserProfile } from '../../services/dataService';
+import { getCompleteUserProfile, addUserSkill } from '../../services/dataService';
 import '../../styles/maritime-theme.css';
 
 const ProfileDashboard = () => {
@@ -26,6 +26,12 @@ const ProfileDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
+  const [showAddSkillModal, setShowAddSkillModal] = useState(false);
+  const [newSkill, setNewSkill] = useState({
+    skill_name: '',
+    proficiency_level: 3,
+    category: ''
+  });
 
   // Load user data on component mount
   useEffect(() => {
@@ -68,15 +74,45 @@ const ProfileDashboard = () => {
   // Calculate how complete the user's profile is
   const calculateProfileCompletion = (data) => {
     let completed = 0;
-    let total = 5;
+    let total = 4;
 
     if (data.first_name && data.last_name) completed++;
     if (data.user_role) completed++;
     if (data.department) completed++;
     if (data.skills && data.skills.length > 0) completed++;
-    if (data.achievements && data.achievements.length > 0) completed++;
+    //if (data.achievements && data.achievements.length > 0) completed++;
 
     return Math.round((completed / total) * 100);
+  };
+
+  const handleAddSkill = async () => {
+    try {
+      const user = await getCurrentUser();
+      
+      const skillData = {
+        function_area: userData?.department || 'General',
+        specialization: newSkill.category || userData?.department,
+        skill_name: newSkill.skill_name,
+        proficiency_level: newSkill.proficiency_level
+      };
+
+      const { error } = await addUserSkill(user.id, skillData);
+      
+      if (error) {
+        console.error('Error adding skill:', error);
+        return;
+      }
+
+      // Reload profile
+      await loadUserData();
+      
+      // Close modal and reset
+      setShowAddSkillModal(false);
+      setNewSkill({ skill_name: '', proficiency_level: 3, category: '' });
+      
+    } catch (error) {
+      console.error('Error:', error);
+    }
   };
 
   if (loading) {
@@ -124,7 +160,11 @@ const ProfileDashboard = () => {
             <button
               onClick={() => navigate('/profile/edit')}
               className="btn btn-outline"
-              style={{ borderColor: 'white', color: 'white' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
             >
               <Edit size={18} />
               Edit Profile
@@ -250,10 +290,15 @@ const ProfileDashboard = () => {
                   Your Skills
                 </h2>
                 <button
-                  onClick={() => navigate('/profile/skills/add')}
-                  className="btn btn-sm btn-primary"
+                  onClick={() => setShowAddSkillModal(true)}
+                  className="btn btn-primary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
                 >
-                  <Plus size={16} />
+                  <Plus size={18} />
                   Add Skill
                 </button>
               </div>
@@ -324,6 +369,123 @@ const ProfileDashboard = () => {
                 )}
               </div>
             </div>
+
+            {/* Add Skill Modal */}
+            {showAddSkillModal && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000
+              }}>
+                <div className="card" style={{ 
+                  maxWidth: '500px', 
+                  width: '90%',
+                  maxHeight: '90vh',
+                  overflow: 'auto'
+                }}>
+                  <div className="card-header">
+                    <h2 className="card-title">Add New Skill</h2>
+                  </div>
+                  <div className="card-body">
+                    <div style={{ display: 'grid', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                          Skill Name
+                        </label>
+                        <input
+                          type="text"
+                          value={newSkill.skill_name}
+                          onChange={(e) => setNewSkill(prev => ({
+                            ...prev,
+                            skill_name: e.target.value
+                          }))}
+                          className="input"
+                          placeholder="e.g., JavaScript, Project Management"
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                          Category
+                        </label>
+                        <select
+                          value={newSkill.category}
+                          onChange={(e) => setNewSkill(prev => ({
+                            ...prev,
+                            category: e.target.value
+                          }))}
+                          className="input"
+                        >
+                          <option value="">Select Category</option>
+                          <option value="Technical">Technical</option>
+                          <option value="Leadership">Leadership</option>
+                          <option value="Communication">Communication</option>
+                          <option value="Domain Knowledge">Domain Knowledge</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                          Proficiency Level: {newSkill.proficiency_level}/5
+                        </label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="5"
+                          value={newSkill.proficiency_level}
+                          onChange={(e) => setNewSkill(prev => ({
+                            ...prev,
+                            proficiency_level: parseInt(e.target.value)
+                          }))}
+                          style={{ width: '100%' }}
+                        />
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          fontSize: '0.8rem',
+                          color: '#888',
+                          marginTop: '0.25rem'
+                        }}>
+                          <span>Beginner</span>
+                          <span>Expert</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '1rem', 
+                      marginTop: '1.5rem',
+                      paddingTop: '1.5rem',
+                      borderTop: '1px solid rgba(162, 150, 202, 0.2)'
+                    }}>
+                      <button
+                        onClick={() => setShowAddSkillModal(false)}
+                        className="btn btn-outline"
+                        style={{ flex: 1 }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleAddSkill}
+                        className="btn btn-primary"
+                        style={{ flex: 1 }}
+                        disabled={!newSkill.skill_name}
+                      >
+                        Add Skill
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Learning Progress */}
             <div className="card">

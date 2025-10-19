@@ -92,6 +92,30 @@ export const getCompleteUserProfile = async (userId) => {
   }
 };
 
+/**
+ * Update user profile
+ * @param {string} userId - User's ID
+ * @param {object} updates - Fields to update
+ * @returns {Promise} Updated profile data
+ */
+export const updateUserProfile = async (userId, updates) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('Update user profile error:', error.message);
+    return { data: null, error: error.message };
+  }
+};
+
 // SKILLS OPERATIONS
 // ============================================
 
@@ -952,6 +976,7 @@ export default {
   // User Profile
   createUserProfile,
   getCompleteUserProfile,
+  updateUserProfile,
   
   // Skills
   addUserSkill,
