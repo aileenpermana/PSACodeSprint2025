@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { ArrowUp, ArrowDown, TrendingUp, Award, Target, Lock, CheckCircle } from 'lucide-react';
+import { analyzeSkillGap } from '../../services/openaiService';
 
 const CareerLift = ({ currentRole, department, skills = [] }) => {
   const [selectedFloor, setSelectedFloor] = useState(null);
+  const [creatingPlan, setCreatingPlan] = useState(false);
+  const [planError, setPlanError] = useState(null);
 
   // Career levels (floors)
   const careerLevels = [
@@ -111,7 +114,43 @@ const CareerLift = ({ currentRole, department, skills = [] }) => {
     return 2; // Default to Junior
   };
 
+  const handleCreateDevelopmentPlan = async (floorData) => {
+    try {
+        setCreatingPlan(true);
+        setPlanError(null);
+        
+        console.log('Creating development plan for:', floorData.title);
+        
+        // Get user's current skills
+        const currentSkills = skills || [];
+        
+        // Target role and required skills
+        const targetRole = floorData.title;
+        const requiredSkills = floorData.keySkills || [];
+        
+        // Call AI service to analyze skill gap
+        const analysis = await analyzeSkillGap(currentSkills, targetRole, requiredSkills);
+        
+        console.log('AI Analysis received:', analysis);
+        
+        // Navigate to a development plan page or show modal with results
+        // For now, I just log it and show an alert -> test tmr
+        alert('Development plan created! Check console for details.');
+        
+        // TODO: Navigate to development plan page with the analysis
+        // navigate('/development-plan', { state: { analysis, targetRole } });
+        
+    } catch (error) {
+        console.error('Error creating development plan:', error);
+        setPlanError(error.message);
+    } finally {
+        setCreatingPlan(false);
+    }
+    };
+
   const currentFloor = getCurrentFloor();
+
+
 
   return (
     <div style={{
@@ -482,6 +521,66 @@ const CareerLift = ({ currentRole, department, skills = [] }) => {
                       </button>
                     </div>
                   )}
+                  {/* Development Plan Button */}
+                    <button
+                    onClick={() => {
+                        const currentFloorData = careerLevels.find(l => l.floor === selectedFloor);
+                        handleCreateDevelopmentPlan(currentFloorData);
+                    }}
+                    disabled={creatingPlan}
+                    style={{
+                        padding: '0.75rem 1.5rem',
+                        background: creatingPlan 
+                        ? 'rgba(162, 150, 202, 0.3)' 
+                        : 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: '700',
+                        fontSize: '1rem',
+                        cursor: creatingPlan ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.3s ease',
+                        marginTop: '1rem'
+                    }}
+                    >
+                    {creatingPlan ? (
+                        <>
+                        <div style={{
+                            width: '16px',
+                            height: '16px',
+                            border: '2px solid #000',
+                            borderTop: '2px solid transparent',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                        }} />
+                        Creating Plan...
+                        </>
+                    ) : (
+                        <>
+                        <Target size={20} />
+                        Create Development Plan
+                        </>
+                    )}
+                    </button>
+
+                    {planError && (
+                    <div style={{
+                        marginTop: '1rem',
+                        padding: '0.75rem',
+                        background: 'rgba(255, 59, 48, 0.2)',
+                        border: '1px solid #ff3b30',
+                        borderRadius: '8px',
+                        color: '#ff3b30',
+                        fontSize: '0.9rem'
+                    }}>
+                        {planError}
+                    </div>
+                    )}
+
                 </div>
               );
             })()

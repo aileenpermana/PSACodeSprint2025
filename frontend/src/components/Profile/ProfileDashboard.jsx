@@ -115,6 +115,11 @@ const ProfileDashboard = () => {
     }
   };
 
+  const handleStartPlanning = () => {
+    // Navigate to the Career Lift page where users can plan their development
+    navigate('/careerlift');
+  };
+
   if (loading) {
     return (
       <Layout>
