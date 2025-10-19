@@ -1,7 +1,7 @@
 import { Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import PSALogo from './PSALogo';
-import './AuthPages.css';
+import PSALogo from '../PSALogo';
+import '../AuthPages.css';
 
 const SignInAltPage = () => {
   const navigate = useNavigate();
