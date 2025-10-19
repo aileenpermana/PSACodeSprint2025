@@ -242,6 +242,41 @@ Return as structured JSON with this format:
 };
 
 /**
+ * Chat with AI for general career guidance
+ * @param {string} userMessage - User's message
+ * @param {Array} conversationHistory - Previous messages for context
+ * @returns {Promise} AI response
+ */
+export const chatWithAI = async (userMessage, conversationHistory = []) => {
+  const messages = [
+    { 
+      role: 'system', 
+      content: `You are a helpful AI career assistant for PSA (Port of Singapore Authority) employees. 
+      
+Your role is to:
+- Provide friendly, practical career advice
+- Help with career planning and skill development
+- Offer mental wellbeing support
+- Suggest internal mobility opportunities
+- Recommend courses and learning paths
+
+Be conversational, empathetic, and supportive. Keep responses concise but helpful.
+If asked about stress or mental health, be caring and suggest resources like the Employee Assistance Program.` 
+    },
+    ...conversationHistory,
+    { role: 'user', content: userMessage }
+  ];
+
+  try {
+    const response = await callOpenAI(messages, 0.8);
+    return response;
+  } catch (error) {
+    console.error('Chat error:', error);
+    throw error;
+  }
+};
+
+/**
  * Get personalized course recommendations based on skill gaps
  * @param {Array} currentSkills - User's current skills
  * @param {Array} targetSkills - Skills user wants to develop
@@ -308,6 +343,7 @@ export default {
   //analyzeWellbeing,
   predictLeadershipPotential,
   recommendMentors,
+  chatWithAI,
   recommendCourses,
   //analyzeSentiment
 };

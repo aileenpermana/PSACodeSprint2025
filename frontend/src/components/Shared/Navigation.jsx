@@ -235,34 +235,6 @@ const Navigation = () => {
                 </button>
 
                 <button
-                  onClick={() => {
-                    navigate('/settings');
-                    setUserMenuOpen(false);
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '1rem',
-                    background: 'transparent',
-                    color: 'var(--psa-white)',
-                    border: 'none',
-                    borderBottom: '1px solid rgba(162, 150, 202, 0.2)',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontFamily: 'inherit',
-                    textAlign: 'left',
-                    transition: 'background var(--transition-fast)'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(162, 150, 202, 0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <Settings size={18} />
-                  <span>Settings</span>
-                </button>
-
-                <button
                   onClick={handleSignOut}
                   style={{
                     width: '100%',

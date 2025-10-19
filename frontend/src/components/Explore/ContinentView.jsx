@@ -1,12 +1,18 @@
 // CONTINENT VIEW COMPONENT
 
 import React, { useState } from 'react';
-import { Map, Compass, TrendingUp, Users, BookOpen, Award, ChevronRight, Ship, Anchor, X } from 'lucide-react';
+import { Target, Map, Compass, TrendingUp, Users, BookOpen, Award, ChevronRight, Ship, Anchor, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { analyzeSkillGap } from '../../services/openaiService';
+
 
 const ContinentView = ({ division, currentDepartment, userData, onNavigate }) => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [showTransitionPath, setShowTransitionPath] = useState(false);
+  const [creatingPlan, setCreatingPlan] = useState(false);
+  const [planError, setPlanError] = useState(null);
 
+  const navigate = useNavigate();
   // Division data with detailed role information
   const divisionData = {
     it: {
@@ -281,29 +287,68 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
   };
 
     const handleNavigateToRole = (role) => {
-    if (userData?.user_role === role.title) {
-      return;
+        if (userData?.user_role === role.title) {
+        return;
+        }
+
+        const currentSkills = userData?.skills?.map(s => s.skill_name) || [];
+        const requiredSkills = role.keySkills;
+        const missingSkills = requiredSkills.filter(skill => 
+        !currentSkills.some(current => 
+            current.toLowerCase().includes(skill.toLowerCase())
+        )
+        );
+
+        setShowTransitionPath(true);
+        setSelectedRole({
+        ...role,
+        missingSkills,
+        estimatedTime: calculateTransitionTime(missingSkills.length)
+        });
+    };
+
+    const handleViewRoleDetails = (role) => {
+        setSelectedRole(role);
+    };
+
+    const handleCreateDevelopmentPlan = async (role) => {
+    try {
+        setCreatingPlan(true);
+        setPlanError(null);
+        
+        console.log('Creating development plan for role:', role);
+        
+        // Get user's current skills
+        const currentSkills = userData?.skills || [];
+        
+        // For this role, define some typical required skills
+        // In a real app, this would come from your database
+        const requiredSkills = [
+        'Leadership',
+        'Strategic Planning',
+        'Team Management',
+        'Communication',
+        'Domain Expertise'
+        ];
+        
+        // Call AI service
+        const analysis = await analyzeSkillGap(currentSkills, role, requiredSkills);
+        
+        console.log('Development plan created:', analysis);
+        
+        alert(`Development plan for ${role} created! Check console for details.`);
+        
+        // TODO: Navigate to development plan page
+        // navigate('/development-plan', { state: { analysis, targetRole: role } });
+        
+    } catch (error) {
+        console.error('Error creating development plan:', error);
+        setPlanError(error.message);
+        alert('Error creating development plan: ' + error.message);
+    } finally {
+        setCreatingPlan(false);
     }
-
-    const currentSkills = userData?.skills?.map(s => s.skill_name) || [];
-    const requiredSkills = role.keySkills;
-    const missingSkills = requiredSkills.filter(skill => 
-      !currentSkills.some(current => 
-        current.toLowerCase().includes(skill.toLowerCase())
-      )
-    );
-
-    setShowTransitionPath(true);
-    setSelectedRole({
-      ...role,
-      missingSkills,
-      estimatedTime: calculateTransitionTime(missingSkills.length)
-    });
-  };
-
-  const handleViewRoleDetails = (role) => {
-    setSelectedRole(role);
-  };
+    };
 
   const calculateTransitionTime = (skillGapCount) => {
     if (skillGapCount === 0) return '0-3 months';
@@ -696,6 +741,45 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
                       <ChevronRight size={18} />
                       Details
                     </button>
+                    <button
+                onClick={() => handleCreateDevelopmentPlan(role)}
+                disabled={creatingPlan}
+                style={{
+                    padding: '0.5rem 1rem',
+                    background: creatingPlan 
+                    ? 'rgba(162, 150, 202, 0.3)'
+                    : 'linear-gradient(135deg, var(--psa-secondary) 0%, #9b88d4 100%)',
+                    color: creatingPlan ? 'var(--psa-gray)' : 'var(--psa-dark)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    cursor: creatingPlan ? 'not-allowed' : 'pointer',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.3s ease'
+                }}
+                >
+                {creatingPlan ? (
+                    <>
+                    <div style={{
+                        width: '14px',
+                        height: '14px',
+                        border: '2px solid currentColor',
+                        borderTop: '2px solid transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                    }} />
+                    Creating...
+                    </>
+                ) : (
+                    <>
+                    <Target size={16} />
+                    Create Dev Plan
+                    </>
+                )}
+                </button>
                   </div>
                 </div>
               );
@@ -783,6 +867,7 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
                 onClick={() => {
                   setShowTransitionPath(false);
                   // Navigate to development plan
+                  navigate('/careerlift')
                 }}
                 style={{
                   flex: 1,
@@ -998,29 +1083,6 @@ const ContinentView = ({ division, currentDepartment, userData, onNavigate }) =>
                   }}
                 >
                   Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    console.log('Create dev plan for:', selectedRole);
-                    setShowTransitionPath(false);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    background: 'linear-gradient(135deg, #A296ca 0%, #7a6fa0 100%)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  <TrendingUp size={18} />
-                  Create Dev Plan
                 </button>
               </div>
             </div>

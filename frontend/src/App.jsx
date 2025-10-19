@@ -17,6 +17,24 @@ import ExplorePage from './components/Explore/ExplorePage';
 import CareerLiftPage from './components/Explore/CareerLiftPage';
 import ContinentViewPage from './components/Explore/ContinentViewPage';
 
+// AI Components
+import AIChatPage from './components/AI/AIChatPage';
+
+// Mentor Components
+import MentorFinder from './components/Mentor/MentorFinder';
+import MentorProfile from './components/Mentor/MentorProfile';
+import MentorChat from './components/Mentor/MentorChat';
+
+// Wellbeing Components
+import WellbeingDashboard from './components/Wellbeing/WellbeingDashboard';
+import WeeklySurvey from './components/Wellbeing/WeeklySurvey';
+
+// Leadership Component
+import LeadershipPotential from './components/Leadership/LeadershipPotential';
+
+// Achievement Pages
+import BadgeSystem from './components/Achievements/BadgeSystem';
+
 // Import supabase
 import { supabase } from './services/supabaseClient';
 
@@ -133,13 +151,70 @@ function App() {
             </ProtectedRoute>
           } 
         />
-
-        {/* Placeholder routes for future pages */}
-        <Route path="/mentors" element={<ProtectedRoute><div>Mentors Page Coming Soon</div></ProtectedRoute>} />
-        <Route path="/ai-chat" element={<ProtectedRoute><div>AI Chat Coming Soon</div></ProtectedRoute>} />
-        <Route path="/achievements" element={<ProtectedRoute><div>Achievements Coming Soon</div></ProtectedRoute>} />
-        <Route path="/wellbeing" element={<ProtectedRoute><div>Wellbeing Coming Soon</div></ProtectedRoute>} />
-        <Route path="/leadership" element={<ProtectedRoute><div>Leadership Coming Soon</div></ProtectedRoute>} />
+        <Route 
+          path="/ai-chat" 
+          element={
+            <ProtectedRoute>
+              <AIChatPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/mentors" 
+          element={
+            <ProtectedRoute>
+              <MentorFinder />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/mentor/:mentorId" 
+          element={
+            <ProtectedRoute>
+              <MentorProfile />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/chat/:mentorId" 
+          element={
+            <ProtectedRoute>
+              <MentorChat />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/wellbeing" 
+          element={
+            <ProtectedRoute>
+              <WellbeingDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/wellbeing/survey" 
+          element={
+            <ProtectedRoute>
+              <WeeklySurvey />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/leadership" 
+          element={
+            <ProtectedRoute>
+              <LeadershipPotential />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/achievements" 
+          element={
+            <ProtectedRoute>
+              <BadgeSystem />
+            </ProtectedRoute>
+          } 
+        />
 
         {/* Catch all - redirect to dashboard or signin */}
         <Route path="*" element={<Navigate to={user ? "/dashboard" : "/signin"} replace />} />
