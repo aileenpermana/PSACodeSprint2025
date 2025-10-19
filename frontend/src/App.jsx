@@ -10,6 +10,7 @@ import ResetPasswordPage from './components/Auth/ResetPasswordPage';
 // Profile Pages
 import ProfileDashboard from './components/Profile/ProfileDashboard';
 import ProfileSetup from './components/Profile/ProfileSetup';
+import EditProfile from './components/Profile/EditProfile';
 
 //Exploration Page
 import ExplorePage from './components/Explore/ExplorePage';
@@ -97,6 +98,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ProfileSetup />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile/edit" 
+          element={
+            <ProtectedRoute>
+              <EditProfile />
             </ProtectedRoute>
           } 
         />

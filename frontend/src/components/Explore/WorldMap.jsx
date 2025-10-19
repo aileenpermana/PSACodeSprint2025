@@ -154,38 +154,59 @@ const WorldMap = ({
 
         {/* Trade routes (career pathways) - only show from your current continent */}
         {currentDepartment && departments.map(dept => {
-          if (isCurrentDepartment(dept.id)) return null;
-          const currentDept = departments.find(d => d.name === currentDepartment);
-          if (!currentDept) return null;
+        if (isCurrentDepartment(dept.id)) return null;
+        const currentDept = departments.find(d => d.name === currentDepartment);
+        if (!currentDept) return null;
 
-          // Draw dotted lines from current to other continents
-          const paths = {
+        const paths = {
             it: { x: 280, y: 380 },
             operations: { x: 620, y: 340 },
             engineering: { x: 200, y: 570 },
             finance: { x: 450, y: 530 },
             hr: { x: 210, y: 720 },
             data: { x: 660, y: 680 }
-          };
+        };
 
-          const start = paths[currentDept.id];
-          const end = paths[dept.id];
+        const start = paths[currentDept.id];
+        const end = paths[dept.id];
 
-          if (!start || !end) return null;
+        if (!start || !end) return null;
 
-          return (
+        return (
+            <g key={`route-${dept.id}`}>
+            {/* Shadow/glow effect for depth */}
             <line
-              key={`route-${dept.id}`}
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-              stroke="#A296ca"
-              strokeWidth="1"
-              strokeDasharray="4,4"
-              opacity="0.2"
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
+                stroke="#A296ca"
+                strokeWidth="4"
+                strokeDasharray="8,6"
+                opacity="0.2"
+                filter="blur(2px)"
             />
-          );
+            {/* Main route line - MUCH MORE VISIBLE */}
+            <line
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
+                stroke="#E8B4F9"
+                strokeWidth="3"
+                strokeDasharray="8,6"
+                opacity="0.7"
+            >
+                <animate
+                attributeName="stroke-dashoffset"
+                from="0"
+                to="14"
+                dur="1s"
+                repeatCount="indefinite"
+                />
+            </line>
+            </g>
+        );
         })}
 
         {/* Render all continents */}
@@ -201,7 +222,7 @@ const WorldMap = ({
               filter={isCurrentDepartment(dept.id) || selectedDivision === dept.id ? 'url(#glow)' : 'none'}
               style={{
                 cursor: 'pointer',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
               }}
               onMouseEnter={() => setHoveredContinent(dept.id)}
               onMouseLeave={() => setHoveredContinent(null)}
@@ -238,63 +259,83 @@ const WorldMap = ({
 
         {/* Your ship (current location marker) */}
         {currentDepartment && (() => {
-          const currentDept = departments.find(d => d.name === currentDepartment);
-          if (!currentDept) return null;
-          const position = landmarks[currentDept.id]?.[0];
-          if (!position) return null;
+        const currentDept = departments.find(d => d.name === currentDepartment);
+        if (!currentDept) return null;
+        const position = landmarks[currentDept.id]?.[0];
+        if (!position) return null;
 
-          return (
+        // MOVE SHIP ABOVE THE CONTINENT
+        const offsetX = position.x;
+        const offsetY = position.y - 60; // Position ship 60px above continent
+
+        return (
             <g>
-              {/* Pulsing circle animation */}
-              <circle
-                cx={position.x}
-                cy={position.y}
+            {/* Pulsing circle animation */}
+            <circle
+                cx={offsetX}
+                cy={offsetY}
                 r="30"
                 fill="url(#shipGlow)"
                 opacity="0.3"
-              >
+            >
                 <animate
-                  attributeName="r"
-                  from="25"
-                  to="45"
-                  dur="2s"
-                  repeatCount="indefinite"
+                attributeName="r"
+                from="25"
+                to="45"
+                dur="2s"
+                repeatCount="indefinite"
                 />
                 <animate
-                  attributeName="opacity"
-                  from="0.4"
-                  to="0"
-                  dur="2s"
-                  repeatCount="indefinite"
+                attributeName="opacity"
+                from="0.5"
+                to="0"
+                dur="2s"
+                repeatCount="indefinite"
                 />
-              </circle>
+            </circle>
 
-              {/* Ship icon */}
-              <circle cx={position.x} cy={position.y} r="18" fill="#A296ca"/>
-              <text
-                x={position.x}
-                y={position.y + 6}
+            {/* Ship icon */}
+            <circle 
+                cx={offsetX} 
+                cy={offsetY} 
+                r="22" 
+                fill="#A296ca" 
+                stroke="#fff" 
+                strokeWidth="2"
+            />
+            <text
+                x={offsetX}
+                y={offsetY + 7}
                 fontFamily="Arial"
-                fontSize="20"
+                fontSize="24"
                 textAnchor="middle"
-              >
+            >
                 🚢
-              </text>
+            </text>
 
-              {/* "You are here" label */}
-              <text
-                x={position.x}
-                y={position.y - 35}
-                fontFamily="Arial"
-                fontSize="10"
-                fontWeight="600"
+            {/* "You are here" label */}
+            <rect
+                x={offsetX - 50}
+                y={offsetY - 55}
+                width="100"
+                height="25"
+                rx="12"
                 fill="#A296ca"
+                opacity="0.95"
+            />
+            <text
+                x={offsetX}
+                y={offsetY - 38}
+                fontFamily="Arial"
+                fontSize="11"
+                fontWeight="700"
+                fill="#1d161e"
                 textAnchor="middle"
-              >
+            >
                 YOU ARE HERE
-              </text>
+            </text>
             </g>
-          );
+        );
         })()}
 
         {/* Compass Rose */}

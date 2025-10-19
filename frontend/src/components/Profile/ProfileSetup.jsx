@@ -1,17 +1,18 @@
 // Multi-step onboarding for new users
 // Collects: Basic info, current role, skills, interests
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Ship, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { getCurrentUser } from '../../services/supabaseClient';
-import { createUserProfile, addUserSkill } from '../../services/dataService';
+import { getUserProfile, getCompleteUserProfile } from '../../services/dataService';
+import { createUserProfile, addUserSkill, updateUserProfile } from '../../services/dataService';
 import Layout from '../Shared/layout';
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -31,6 +32,8 @@ const ProfileSetup = () => {
     // Step 4: Interests
     interests: []
   });
+
+  const [existingProfile, setExistingProfile] = useState(null);
 
   const totalSteps = 4;
 
@@ -98,6 +101,51 @@ const ProfileSetup = () => {
     'Communication Skills'
   ];
 
+  useEffect(() => {
+    loadExistingProfile();
+  }, []);
+
+  const loadExistingProfile = async () => {
+    try {
+      setLoading(true);
+      const user = await getCurrentUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await getCompleteUserProfile(user.id);
+      
+      if (data && !error) {
+        setExistingProfile(data);
+        
+        // Pre-fill form with existing data
+        setFormData(prev => ({
+          ...prev,
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          employee_id: data.employee_id || '',
+          user_role: data.user_role || '',
+          department: data.department || '',
+          hire_date: data.hire_date || '',
+          selectedSkills: data.skills?.map(s => s.skill_name) || [],
+          interests: data.interests || []
+        }));
+
+        // Skip to first incomplete section
+        const completionStatus = calculateMissingFields(data);
+        if (completionStatus.missingFields.length > 0) {
+          setCurrentStep(completionStatus.startStep);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -161,6 +209,27 @@ const ProfileSetup = () => {
     }
   };
 
+  const calculateMissingFields = (data) => {
+    const missing = [];
+    let startStep = 1;
+
+    if (!data.first_name || !data.last_name || !data.employee_id) {
+      missing.push('basic_info');
+      startStep = 1;
+    } else if (!data.user_role || !data.department) {
+      missing.push('role');
+      startStep = 2;
+    } else if (!data.skills || data.skills.length === 0) {
+      missing.push('skills');
+      startStep = 3;
+    } else if (!data.interests || data.interests.length === 0) {
+      missing.push('interests');
+      startStep = 4;
+    }
+
+    return { missingFields: missing, startStep };
+  };
+
   // Submit profile
   const handleSubmit = async () => {
     try {
@@ -173,42 +242,72 @@ const ProfileSetup = () => {
         return;
       }
 
-      // Create user profile
-      const profileData = {
-        email: user.email,
+      if (existingProfile) {
+      // UPDATE existing profile
+      const { error: updateError } = await updateUserProfile(user.id, {
         first_name: formData.first_name,
         last_name: formData.last_name,
         employee_id: formData.employee_id,
         user_role: formData.user_role,
         department: formData.department,
-        hire_date: formData.hire_date || new Date().toISOString()
-      };
+        hire_date: formData.hire_date || existingProfile.hire_date
+      });
 
-      const { error: profileError } = await createUserProfile(user.id, profileData);
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
         return;
       }
 
-      // Add selected skills
-      for (const skill of formData.selectedSkills) {
+      // Update skills - remove old, add new
+      const existingSkills = existingProfile.skills?.map(s => s.skill_name) || [];
+      const newSkills = formData.selectedSkills.filter(s => !existingSkills.includes(s));
+      
+      for (const skill of newSkills) {
         await addUserSkill(user.id, {
           function_area: formData.department,
           specialization: formData.department,
           skill_name: skill,
-          proficiency_level: 3 // Default proficiency
+          proficiency_level: 3
         });
       }
+    } else {
 
-      // Navigate to dashboard
-      navigate('/dashboard');
-      
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Create user profile
+        const profileData = {
+          email: user.email,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          employee_id: formData.employee_id,
+          user_role: formData.user_role,
+          department: formData.department,
+          hire_date: formData.hire_date || new Date().toISOString()
+        };
+
+        const { error: profileError } = await createUserProfile(user.id, profileData);
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          return;
+        }
+
+        // Add selected skills
+        for (const skill of formData.selectedSkills) {
+          await addUserSkill(user.id, {
+            function_area: formData.department,
+            specialization: formData.department,
+            skill_name: skill,
+            proficiency_level: 3 // Default proficiency
+          });
+        }
+
+        // Navigate to dashboard
+        navigate('/dashboard');
+        
+      }} catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
   // Render step content
   const renderStepContent = () => {
@@ -515,16 +614,19 @@ const ProfileSetup = () => {
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
+              alignItems: 'center',
               marginTop: '3rem',
               paddingTop: '2rem',
-              borderTop: '1px solid rgba(162, 150, 202, 0.2)'
+              borderTop: '1px solid rgba(162, 150, 202, 0.2)',
+              gap: '2rem'
             }}>
               <button
                 onClick={handlePrevious}
                 disabled={currentStep === 1}
                 className="btn btn-outline"
                 style={{
-                  visibility: currentStep === 1 ? 'hidden' : 'visible'
+                  visibility: currentStep === 1 ? 'hidden' : 'visible',
+                  minWidth: '120px'
                 }}
               >
                 <ChevronLeft size={20} />
@@ -532,10 +634,15 @@ const ProfileSetup = () => {
               </button>
 
               <div style={{ 
-                fontSize: '0.9rem', 
-                color: 'var(--psa-gray)',
+                fontSize: '0.95rem', 
+                color: 'var(--psa-secondary)',
+                fontWeight: '500',
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                padding: '0.5rem 1.5rem',
+                background: 'rgba(162, 150, 202, 0.1)',
+                borderRadius: '20px',
+                whiteSpace: 'nowrap'
               }}>
                 Step {currentStep} of {totalSteps}
               </div>
@@ -544,6 +651,7 @@ const ProfileSetup = () => {
                 onClick={handleNext}
                 disabled={!validateStep() || loading}
                 className="btn btn-primary"
+                style={{ minWidth: '120px' }}
               >
                 {loading ? (
                   'Saving...'
