@@ -304,11 +304,11 @@ Return as JSON:
 export default {
   getCareerRecommendations,
   analyzeSkillGap,
-  getChatbotResponse,
-  analyzeWellbeing,
+  //getChatbotResponse,
+  //analyzeWellbeing,
   predictLeadershipPotential,
   recommendMentors,
   recommendCourses,
-  analyzeSentiment
+  //analyzeSentiment
 };
 
