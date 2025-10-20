@@ -1,38 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Sparkles, Loader, MessageSquare, Bot } from 'lucide-react';
+import { X, Send, Sparkles, Loader, Bot, User } from 'lucide-react';
 import { chatWithAI } from '../../services/openaiService';
 
 /**
  * AI Chatbot Component
  * Conversational AI assistant for career guidance and support
- * 
- * @param {function} onClose - Function to close the chatbot
- * @param {object} userData - Current user's profile data
  */
 const AIChatbot = ({ onClose, userData }) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Hi ${userData?.first_name || 'there'}! 👋 I'm your AI career assistant. I can help you with:\n\n• Career planning and pathways\n• Skill development recommendations\n• Internal mobility opportunities\n• Mental wellbeing support\n• Course suggestions\n\nWhat would you like to explore today?`,
+      content: `Hi ${userData?.first_name || 'there'}! 👋 I'm your AI career assistant at PSA Pathways.\n\nI can help you with:\n• Career planning and pathways\n• Skill development recommendations\n• Internal mobility opportunities\n• Mental wellbeing support\n• Course suggestions\n\nWhat would you like to explore today?`,
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // Quick action suggestions
   const quickActions = [
     "Help me create a development plan",
     "What skills should I learn next?",
-    "Show me internal opportunities",
-    "I'm feeling stressed at work",
-    "Career path recommendations",
-    "Find me a mentor"
+    "Show me career advancement tips",
+    "I need work-life balance advice",
+    "Recommend courses for me"
   ];
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -41,32 +34,36 @@ const AIChatbot = ({ onClose, userData }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
+  const handleSend = async (messageText = null) => {
+    const textToSend = messageText || input.trim();
+    if (!textToSend || isTyping) return;
 
     const userMessage = {
       role: 'user',
-      content: input.trim(),
+      content: textToSend,
       timestamp: new Date()
     };
 
-    // Add user message
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
-    setError(null);
 
     try {
-      // Prepare conversation history for context
+      // Prepare conversation history
       const conversationHistory = messages.map(msg => ({
         role: msg.role,
         content: msg.content
       }));
 
-      // Call AI service
-      const response = await chatWithAI(input, conversationHistory);
+      // Add context about the user
+      const contextMessage = {
+        role: 'system',
+        content: `User context: ${userData?.first_name || 'User'} is a ${userData?.user_role || 'employee'} in ${userData?.department || 'PSA'}.`
+      };
 
-      // Add AI response
+      // Call AI service
+      const response = await chatWithAI(textToSend, [contextMessage, ...conversationHistory]);
+
       const assistantMessage = {
         role: 'assistant',
         content: response,
@@ -76,23 +73,18 @@ const AIChatbot = ({ onClose, userData }) => {
       setMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
       console.error('Chat error:', err);
-      setError('Sorry, I encountered an error. Please try again.');
       
-      // Add error message to chat
       const errorMessage = {
         role: 'assistant',
-        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment, or feel free to explore the platform manually.",
+        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment. You can also explore the platform manually or contact HR support if you need immediate assistance.",
         timestamp: new Date(),
         isError: true
       };
+      
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsTyping(false);
     }
-  };
-
-  const handleQuickAction = (action) => {
-    setInput(action);
   };
 
   const handleKeyPress = (e) => {
@@ -102,43 +94,37 @@ const AIChatbot = ({ onClose, userData }) => {
     }
   };
 
-  const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   return (
     <div style={{
       position: 'fixed',
-      bottom: 0,
-      right: 0,
-      width: '100%',
-      height: '100vh',
-      maxWidth: '450px',
-      backgroundColor: 'var(--psa-dark)',
-      borderLeft: '2px solid var(--psa-secondary)',
+      bottom: '2rem',
+      right: '2rem',
+      width: '450px',
+      height: '650px',
+      background: 'linear-gradient(135deg, #2b1d5a 0%, #1d161e 100%)',
+      borderRadius: '16px',
+      boxShadow: '0 8px 32px rgba(162, 150, 202, 0.4)',
+      border: '2px solid var(--psa-secondary)',
       display: 'flex',
       flexDirection: 'column',
       zIndex: 1000,
-      boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.5)'
+      overflow: 'hidden'
     }}>
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        background: 'var(--psa-secondary)',
         padding: '1.25rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottom: '2px solid rgba(255, 255, 255, 0.1)'
+        borderBottom: '2px solid rgba(162, 150, 202, 0.3)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{
             width: '40px',
             height: '40px',
+            background: 'linear-gradient(135deg, #9B59B6 0%, #A296ca 100%)',
             borderRadius: '50%',
-            background: 'rgba(255, 255, 255, 0.2)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -147,47 +133,48 @@ const AIChatbot = ({ onClose, userData }) => {
           </div>
           <div>
             <h3 style={{
-              margin: 0,
               fontSize: '1.1rem',
-              fontWeight: '600',
-              color: '#fff'
+              fontWeight: '700',
+              color: '#fff',
+              margin: 0
             }}>
               AI Career Assistant
             </h3>
             <p style={{
-              margin: 0,
               fontSize: '0.75rem',
-              color: 'rgba(255, 255, 255, 0.8)'
+              color: 'rgba(255, 255, 255, 0.8)',
+              margin: 0
             }}>
-              Always here to help
+              {isTyping ? 'Typing...' : 'Online'}
             </p>
           </div>
         </div>
         <button
           onClick={onClose}
           style={{
-            background: 'rgba(255, 255, 255, 0.2)',
+            background: 'transparent',
             border: 'none',
-            borderRadius: '8px',
-            padding: '0.5rem',
+            color: '#fff',
             cursor: 'pointer',
+            fontSize: '1.5rem',
+            padding: '0.25rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.2s ease'
+            transition: 'opacity 0.3s ease'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
         >
-          <X size={20} color="#fff" />
+          <X size={24} />
         </button>
       </div>
 
       {/* Messages Area */}
       <div style={{
         flex: 1,
-        overflowY: 'auto',
         padding: '1.5rem',
+        overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
         gap: '1rem'
@@ -197,40 +184,56 @@ const AIChatbot = ({ onClose, userData }) => {
             key={idx}
             style={{
               display: 'flex',
-              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              animation: 'fadeIn 0.3s ease'
+              gap: '0.75rem',
+              alignItems: 'flex-start',
+              flexDirection: msg.role === 'user' ? 'row-reverse' : 'row'
             }}
           >
+            {/* Avatar */}
             <div style={{
-              maxWidth: '85%',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: msg.role === 'user'
+                ? 'linear-gradient(135deg, #4c1c46 0%, #2b1d5a 100%)'
+                : 'linear-gradient(135deg, var(--psa-secondary) 0%, #9B59B6 100%)',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '0.25rem'
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
             }}>
-              <div style={{
-                padding: '0.875rem 1rem',
-                borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                background: msg.role === 'user'
-                  ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
-                  : msg.isError
-                  ? 'rgba(255, 59, 48, 0.1)'
-                  : 'var(--psa-accent)',
-                color: msg.role === 'user' ? '#fff' : 'var(--psa-white)',
-                border: msg.isError ? '1px solid rgba(255, 59, 48, 0.3)' : 'none',
-                fontSize: '0.95rem',
-                lineHeight: '1.5',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word'
-              }}>
-                {msg.content}
-              </div>
+              {msg.role === 'user' ? (
+                <User size={18} color="#fff" />
+              ) : (
+                <Bot size={18} color="#fff" />
+              )}
+            </div>
+
+            {/* Message Bubble */}
+            <div style={{
+              maxWidth: '75%',
+              padding: '0.875rem 1.125rem',
+              borderRadius: '12px',
+              background: msg.role === 'user'
+                ? 'var(--psa-secondary)'
+                : msg.isError
+                ? 'rgba(244, 67, 54, 0.2)'
+                : 'rgba(162, 150, 202, 0.15)',
+              border: msg.isError ? '1px solid rgba(244, 67, 54, 0.4)' : 'none',
+              color: '#fff',
+              fontSize: '0.9rem',
+              lineHeight: '1.6',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word'
+            }}>
+              {msg.content}
               <div style={{
                 fontSize: '0.7rem',
-                color: 'var(--psa-gray)',
-                textAlign: msg.role === 'user' ? 'right' : 'left',
-                padding: '0 0.25rem'
+                color: 'rgba(255, 255, 255, 0.5)',
+                marginTop: '0.5rem',
+                textAlign: msg.role === 'user' ? 'right' : 'left'
               }}>
-                {formatTime(msg.timestamp)}
+                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           </div>
@@ -240,45 +243,31 @@ const AIChatbot = ({ onClose, userData }) => {
         {isTyping && (
           <div style={{
             display: 'flex',
-            justifyContent: 'flex-start'
+            gap: '0.75rem',
+            alignItems: 'flex-start'
           }}>
             <div style={{
-              padding: '0.875rem 1rem',
-              borderRadius: '16px 16px 16px 4px',
-              background: 'var(--psa-accent)',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--psa-secondary) 0%, #9B59B6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Bot size={18} color="#fff" />
+            </div>
+            <div style={{
+              padding: '0.875rem 1.125rem',
+              borderRadius: '12px',
+              background: 'rgba(162, 150, 202, 0.15)',
               display: 'flex',
               gap: '0.5rem',
               alignItems: 'center'
             }}>
-              <div style={{
-                display: 'flex',
-                gap: '0.35rem'
-              }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: 'var(--psa-secondary)',
-                  animation: 'bounce 1.4s ease-in-out infinite'
-                }}></div>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: 'var(--psa-secondary)',
-                  animation: 'bounce 1.4s ease-in-out 0.2s infinite'
-                }}></div>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: 'var(--psa-secondary)',
-                  animation: 'bounce 1.4s ease-in-out 0.4s infinite'
-                }}></div>
-              </div>
-              <span style={{ fontSize: '0.85rem', color: 'var(--psa-gray)' }}>
-                AI is thinking...
-              </span>
+              <div className="typing-dot" style={{ animationDelay: '0s' }} />
+              <div className="typing-dot" style={{ animationDelay: '0.2s' }} />
+              <div className="typing-dot" style={{ animationDelay: '0.4s' }} />
             </div>
           </div>
         )}
@@ -291,76 +280,48 @@ const AIChatbot = ({ onClose, userData }) => {
         <div style={{
           padding: '0 1.5rem 1rem',
           display: 'flex',
-          flexDirection: 'column',
+          flexWrap: 'wrap',
           gap: '0.5rem'
         }}>
-          <p style={{
-            fontSize: '0.8rem',
-            color: 'var(--psa-gray)',
-            margin: 0,
-            marginBottom: '0.25rem'
-          }}>
-            Quick actions:
-          </p>
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.5rem'
-          }}>
-            {quickActions.map((action, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleQuickAction(action)}
-                disabled={isTyping}
-                style={{
-                  fontSize: '0.8rem',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: '20px',
-                  background: 'var(--psa-accent)',
-                  color: 'var(--psa-white)',
-                  border: '1px solid var(--psa-secondary)',
-                  cursor: isTyping ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease',
-                  opacity: isTyping ? 0.5 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!isTyping) {
-                    e.currentTarget.style.background = 'var(--psa-secondary)';
-                    e.currentTarget.style.color = 'var(--psa-dark)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--psa-accent)';
-                  e.currentTarget.style.color = 'var(--psa-white)';
-                }}
-              >
-                {action}
-              </button>
-            ))}
-          </div>
+          {quickActions.map((action, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSend(action)}
+              disabled={isTyping}
+              style={{
+                padding: '0.5rem 0.75rem',
+                background: 'rgba(162, 150, 202, 0.2)',
+                border: '1px solid rgba(162, 150, 202, 0.4)',
+                borderRadius: '20px',
+                color: '#A296ca',
+                fontSize: '0.75rem',
+                cursor: isTyping ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                opacity: isTyping ? 0.5 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!isTyping) {
+                  e.currentTarget.style.background = 'var(--psa-secondary)';
+                  e.currentTarget.style.color = '#fff';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(162, 150, 202, 0.2)';
+                e.currentTarget.style.color = '#A296ca';
+              }}
+            >
+              {action}
+            </button>
+          ))}
         </div>
       )}
 
       {/* Input Area */}
       <div style={{
-        padding: '1.25rem',
-        borderTop: '1px solid var(--psa-accent)',
-        background: 'var(--psa-primary)'
+        padding: '1rem 1.5rem',
+        borderTop: '2px solid rgba(162, 150, 202, 0.2)',
+        background: 'rgba(162, 150, 202, 0.05)'
       }}>
-        {error && (
-          <div style={{
-            marginBottom: '0.75rem',
-            padding: '0.75rem',
-            background: 'rgba(255, 59, 48, 0.1)',
-            border: '1px solid rgba(255, 59, 48, 0.3)',
-            borderRadius: '8px',
-            fontSize: '0.85rem',
-            color: '#ff3b30'
-          }}>
-            {error}
-          </div>
-        )}
-        
         <div style={{
           display: 'flex',
           gap: '0.75rem',
@@ -370,103 +331,74 @@ const AIChatbot = ({ onClose, userData }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me anything about your career..."
+            placeholder="Type your message..."
             disabled={isTyping}
-            rows={1}
             style={{
               flex: 1,
               padding: '0.875rem',
-              borderRadius: '12px',
-              border: '2px solid var(--psa-accent)',
-              background: 'var(--psa-dark)',
-              color: 'var(--psa-white)',
-              fontSize: '0.95rem',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '2px solid rgba(162, 150, 202, 0.3)',
+              borderRadius: '8px',
+              color: '#fff',
+              fontSize: '0.9rem',
               fontFamily: 'inherit',
               resize: 'none',
-              outline: 'none',
-              transition: 'border-color 0.2s ease',
               minHeight: '44px',
-              maxHeight: '120px',
-              opacity: isTyping ? 0.6 : 1
+              maxHeight: '100px',
+              outline: 'none',
+              transition: 'border-color 0.3s ease'
             }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--psa-secondary)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--psa-accent)'}
+            onFocus={(e) => e.currentTarget.style.borderColor = 'var(--psa-secondary)'}
+            onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(162, 150, 202, 0.3)'}
+            rows={1}
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || isTyping}
             style={{
-              padding: '0.875rem',
-              borderRadius: '12px',
+              padding: '0.875rem 1.25rem',
               background: (!input.trim() || isTyping)
-                ? 'var(--psa-accent)'
-                : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                ? 'rgba(162, 150, 202, 0.3)'
+                : 'var(--psa-secondary)',
               border: 'none',
+              borderRadius: '8px',
               color: '#fff',
               cursor: (!input.trim() || isTyping) ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              minWidth: '44px',
-              minHeight: '44px',
+              transition: 'all 0.3s ease',
               opacity: (!input.trim() || isTyping) ? 0.5 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (input.trim() && !isTyping) {
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
             }}
           >
             {isTyping ? (
-              <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
+              <Loader className="spin" size={20} />
             ) : (
               <Send size={20} />
             )}
           </button>
         </div>
-        
-        <p style={{
-          margin: '0.75rem 0 0 0',
-          fontSize: '0.75rem',
-          color: 'var(--psa-gray)',
-          textAlign: 'center'
-        }}>
-          AI can make mistakes. Verify important information.
-        </p>
       </div>
 
       <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes bounce {
-          0%, 60%, 100% {
-            transform: translateY(0);
-          }
-          30% {
-            transform: translateY(-10px);
-          }
-        }
-
         @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes typing-pulse {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+        .typing-dot {
+          width: 8px;
+          height: 8px;
+          background: var(--psa-secondary);
+          border-radius: 50%;
+          animation: typing-pulse 1.4s ease-in-out infinite;
         }
       `}</style>
     </div>

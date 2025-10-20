@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Map, TrendingUp, Compass, Ship, Sparkles, Target, BookOpen, Award, ChevronRight } from 'lucide-react';
+import { Map, TrendingUp, Compass, Ship, Sparkles, Target, BookOpen, Award, Loader, AlertCircle} from 'lucide-react';
 import Layout from '../Shared/layout';
 import WorldMap from './WorldMap';
 import { getCurrentUser } from '../../services/supabaseClient';
@@ -83,22 +83,33 @@ const ExplorePage = () => {
     }
   };
 
-  const handleGetRecommendations = async () => {
+const handleGetRecommendations = async () => {
     if (!userData) return;
 
     try {
       setLoadingAI(true);
+      setAiRecommendations(null);
+
+      console.log('🤖 Requesting AI recommendations for:', userData.first_name);
+
+      const targetDepartment = selectedDivision 
+        ? departments.find(d => d.id === selectedDivision)?.name 
+        : null;
+
       const recommendations = await getCareerRecommendations(
         userData,
         userData.skills || [],
-        selectedDivision ? departments.find(d => d.id === selectedDivision)?.name : null
+        targetDepartment
       );
+
+      console.log('✅ AI Recommendations received:', recommendations);
       setAiRecommendations(recommendations);
+
     } catch (error) {
-      console.error('Error getting recommendations:', error);
+      console.error('❌ Error getting recommendations:', error);
       setAiRecommendations({
         error: true,
-        message: 'Unable to get recommendations. Please try again.'
+        message: `Unable to get recommendations: ${error.message}`
       });
     } finally {
       setLoadingAI(false);
@@ -117,114 +128,190 @@ const ExplorePage = () => {
     if (recs.error) {
       return (
         <div style={{
-          padding: '1rem',
+          padding: '1.5rem',
           background: 'rgba(244, 67, 54, 0.1)',
           borderRadius: '8px',
           border: '2px solid rgba(244, 67, 54, 0.3)',
           color: '#F44336',
-          textAlign: 'center'
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
         }}>
+          <AlertCircle size={20} />
           {recs.message}
         </div>
       );
     }
 
-    if (typeof recs === 'string') {
-      return (
-        <div style={{
-          fontSize: '0.9rem',
-          lineHeight: '1.8',
-          color: '#fff',
-          whiteSpace: 'pre-wrap'
-        }}>
-          {recs}
-        </div>
-      );
-    }
+    // Handle different response formats
+    const careerPaths = recs.career_pathways || recs.careerPaths || [];
+    const summary = recs.summary || '';
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {recs.careerPaths && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* Summary */}
+        {summary && (
+          <div style={{
+            padding: '1rem',
+            background: 'rgba(162, 150, 202, 0.1)',
+            borderRadius: '8px',
+            borderLeft: '4px solid var(--psa-secondary)',
+            fontSize: '0.95rem',
+            lineHeight: '1.6',
+            color: '#ddd'
+          }}>
+            {summary}
+          </div>
+        )}
+
+        {/* Career Pathways */}
+        {careerPaths.length > 0 && (
           <div>
             <h4 style={{
               fontSize: '1rem',
               color: 'var(--psa-secondary)',
-              marginBottom: '0.75rem',
+              marginBottom: '1rem',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem'
             }}>
               <Target size={18} />
-              Recommended Career Paths
+              Recommended Career Pathways
             </h4>
-            {recs.careerPaths.map((path, idx) => (
+            {careerPaths.map((path, idx) => (
               <div
                 key={idx}
                 style={{
-                  padding: '0.75rem',
+                  padding: '1rem',
                   background: 'rgba(162, 150, 202, 0.15)',
-                  borderRadius: '6px',
-                  marginBottom: '0.5rem',
-                  borderLeft: '3px solid var(--psa-secondary)'
+                  borderRadius: '8px',
+                  marginBottom: '0.75rem',
+                  borderLeft: '3px solid var(--psa-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(162, 150, 202, 0.25)';
+                  e.currentTarget.style.transform = 'translateX(5px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(162, 150, 202, 0.15)';
+                  e.currentTarget.style.transform = 'translateX(0)';
                 }}
               >
-                <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{path.title}</div>
-                <div style={{ fontSize: '0.85rem', color: '#aaa' }}>{path.description}</div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'start',
+                  marginBottom: '0.5rem'
+                }}>
+                  <h5 style={{
+                    fontSize: '1.05rem',
+                    fontWeight: '600',
+                    color: '#fff',
+                    margin: 0
+                  }}>
+                    {path.title}
+                  </h5>
+                  {path.match_score && (
+                    <span style={{
+                      background: 'var(--psa-secondary)',
+                      color: '#fff',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '20px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}>
+                      {path.match_score}% Match
+                    </span>
+                  )}
+                </div>
+
+                <p style={{
+                  fontSize: '0.85rem',
+                  color: '#bbb',
+                  margin: '0.5rem 0',
+                  lineHeight: '1.5'
+                }}>
+                  Timeline: {path.timeline}
+                </p>
+
+                {path.target_roles && path.target_roles.length > 0 && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <p style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '0.25rem' }}>
+                      <strong>Target Roles:</strong>
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {path.target_roles.map((role, i) => (
+                        <span key={i} style={{
+                          fontSize: '0.75rem',
+                          padding: '0.25rem 0.5rem',
+                          background: 'rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          color: '#ddd'
+                        }}>
+                          {role}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {path.skill_gaps && path.skill_gaps.length > 0 && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <p style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '0.25rem' }}>
+                      <strong>Skills to Develop:</strong>
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {path.skill_gaps.map((skill, i) => (
+                        <span key={i} style={{
+                          fontSize: '0.75rem',
+                          padding: '0.25rem 0.5rem',
+                          background: 'rgba(255, 193, 7, 0.2)',
+                          borderRadius: '4px',
+                          color: '#FFC107'
+                        }}>
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {path.next_steps && path.next_steps.length > 0 && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <p style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '0.25rem' }}>
+                      <strong>Next Steps:</strong>
+                    </p>
+                    <ul style={{
+                      fontSize: '0.8rem',
+                      color: '#ccc',
+                      margin: 0,
+                      paddingLeft: '1.25rem',
+                      lineHeight: '1.6'
+                    }}>
+                      {path.next_steps.slice(0, 3).map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {recs.skillsToLearn && (
-          <div>
-            <h4 style={{
-              fontSize: '1rem',
-              color: 'var(--psa-secondary)',
-              marginBottom: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <Award size={18} />
-              Skills to Develop
-            </h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {recs.skillsToLearn.map((skill, idx) => (
-                <span
-                  key={idx}
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    background: 'var(--psa-accent)',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    border: '1px solid rgba(162, 150, 202, 0.3)'
-                  }}
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {recs.nextSteps && (
-          <div>
-            <h4 style={{
-              fontSize: '1rem',
-              color: 'var(--psa-secondary)',
-              marginBottom: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <BookOpen size={18} />
-              Recommended Actions
-            </h4>
-            <ol style={{ paddingLeft: '1.5rem', margin: 0, lineHeight: '2' }}>
-              {recs.nextSteps.map((step, idx) => (
-                <li key={idx} style={{ fontSize: '0.9rem' }}>{step}</li>
-              ))}
-            </ol>
+        {/* If no structured data, show raw response */}
+        {careerPaths.length === 0 && typeof recs === 'string' && (
+          <div style={{
+            fontSize: '0.9rem',
+            lineHeight: '1.8',
+            color: '#ddd',
+            whiteSpace: 'pre-wrap'
+          }}>
+            {recs}
           </div>
         )}
       </div>
@@ -234,18 +321,13 @@ const ExplorePage = () => {
   if (loading) {
     return (
       <Layout>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          minHeight: '60vh' 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '80vh'
         }}>
-          <div style={{ textAlign: 'center' }}>
-            <Compass size={48} color="var(--psa-secondary)" className="sailing-icon" />
-            <p style={{ marginTop: '1rem', color: 'var(--psa-secondary)' }}>
-              Charting your course...
-            </p>
-          </div>
+          <Loader className="spin" size={48} color="var(--psa-secondary)" />
         </div>
       </Layout>
     );
@@ -390,42 +472,34 @@ const ExplorePage = () => {
                 onClick={handleGetRecommendations}
                 disabled={loadingAI}
                 style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: loadingAI 
-                    ? 'rgba(162, 150, 202, 0.5)' 
-                    : 'var(--psa-secondary)',
-                  color: loadingAI ? '#fff' : 'var(--psa-dark)',
+                  padding: '1.25rem',
+                  background: loadingAI
+                    ? 'rgba(162, 150, 202, 0.5)'
+                    : 'linear-gradient(135deg, var(--psa-secondary) 0%, #9B59B6 100%)',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  fontSize: '1.1rem',
                   fontWeight: '600',
                   cursor: loadingAI ? 'not-allowed' : 'pointer',
-                  opacity: loadingAI ? 0.7 : 1,
-                  fontFamily: 'inherit',
-                  fontSize: '0.95rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.3s ease'
+                  gap: '0.75rem',
+                  boxShadow: loadingAI ? 'none' : '0 4px 12px rgba(162, 150, 202, 0.4)',
+                  transition: 'all 0.3s ease',
+                  opacity: loadingAI ? 0.7 : 1
                 }}
               >
                 {loadingAI ? (
                   <>
-                    <div style={{
-                      width: '18px',
-                      height: '18px',
-                      border: '3px solid rgba(255,255,255,0.3)',
-                      borderTop: '3px solid #fff',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }} />
-                    Analyzing...
+                    <Loader className="spin" size={20} />
+                    Generating Recommendations...
                   </>
                 ) : (
                   <>
-                    <Sparkles size={18} />
-                    Get AI Navigation
+                    <Sparkles size={20} />
+                    Get AI Career Navigation
                   </>
                 )}
               </button>
@@ -519,31 +593,32 @@ const ExplorePage = () => {
             )}
 
             {/* AI Recommendations */}
-            {aiRecommendations && (
-              <div style={{
-                background: 'var(--psa-primary)',
-                padding: '1.5rem',
-                borderRadius: '12px',
-                border: '2px solid var(--psa-secondary)',
-                maxHeight: '400px',
-                overflow: 'auto'
-              }}>
-                <h3 style={{
-                  fontSize: '1.1rem',
-                  fontWeight: '600',
-                  color: 'var(--psa-secondary)',
-                  marginBottom: '1rem'
+              {aiRecommendations && (
+                <div style={{
+                  background: 'var(--psa-primary)',
+                  padding: '1.5rem',
+                  borderRadius: '12px',
+                  border: '2px solid var(--psa-secondary)',
+                  maxHeight: '600px',
+                  overflow: 'auto'
                 }}>
-                  🤖 AI Recommendations
-                </h3>
-                <div style={{ fontSize: '0.9rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                  <h3 style={{
+                    fontSize: '1.1rem',
+                    fontWeight: '600',
+                    color: 'var(--psa-secondary)',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Sparkles size={20} />
+                    AI Career Recommendations
+                  </h3>
                   {formatRecommendations(aiRecommendations)}
                 </div>
-              </div>
-            )}
-
+              )}
+            </div>
           </div>
-        </div>
         ) : (
           /* NEW CAREER LIFT VIEW */
           <div style={{ padding: '0 2rem' }}>

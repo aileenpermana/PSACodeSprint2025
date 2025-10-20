@@ -1,37 +1,53 @@
 import axios from 'axios';
 
-const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const AZURE_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+// Azure OpenAI Configuration
+const AZURE_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+const DEPLOYMENT_ID = 'gpt-4.1-nano'; 
+const API_VERSION = '2025-01-01-preview';
+const isDevelopment = process.env.NODE_ENV === 'development';
+const AZURE_BASE_URL = isDevelopment 
+  ? '/openai' 
+  : 'https://psacodesprint2025.azure-api.net/openai';
+
+// Construct full Azure endpoint
+const AZURE_ENDPOINT = `${AZURE_BASE_URL}/deployments/${DEPLOYMENT_ID}/chat/completions?api-version=${API_VERSION}`;
 
 /**
- * Make a request to OpenAI API
+ * Make a request to Azure OpenAI API
  * @param {Array} messages - Conversation messages
  * @param {number} temperature - Creativity level (0-1)
+ * @param {number} maxTokens - Maximum tokens in response
  * @returns {Promise} AI response
  */
-const callOpenAI = async (messages, temperature = 0.7) => {
+const callAzureOpenAI = async (messages, temperature = 0.7, maxTokens = 1000) => {
   try {
     const response = await axios.post(
       AZURE_ENDPOINT,
       {
-        model: 'gpt-4', 
         messages: messages,
         temperature: temperature,
-        max_tokens: 1000
+        max_tokens: maxTokens,
+        top_p: 0.95,
+        frequency_penalty: 0,
+        presence_penalty: 0
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
+          'api-key': AZURE_API_KEY // Azure uses 'api-key' header, not Bearer token
         }
       }
     );
 
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error('OpenAI API Error:', error.response?.data || error.message);
-    throw new Error('Failed to get AI response');
+    console.error('Azure OpenAI API Error:', error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      throw new Error('Invalid API key. Please check your Azure OpenAI credentials.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Deployment not found. Please verify the deployment ID.');
+    }
+    throw new Error('Failed to get AI response. Please try again.');
   }
 };
 
@@ -64,7 +80,21 @@ Please provide:
 4. **Timeline**: Estimated time to be ready for each pathway
 5. **Next Steps**: Immediate actions the user can take
 
-Format the response in a clear, structured JSON format.
+Format the response in a clear, structured JSON format with this structure:
+{
+  "career_pathways": [
+    {
+      "title": "pathway name",
+      "match_score": 85,
+      "timeline": "12-18 months",
+      "target_roles": ["role1", "role2"],
+      "skill_gaps": ["skill1", "skill2"],
+      "courses": ["course1", "course2"],
+      "next_steps": ["step1", "step2"]
+    }
+  ],
+  "summary": "overall career guidance"
+}
 `;
 
   const messages = [
@@ -72,80 +102,136 @@ Format the response in a clear, structured JSON format.
     { role: 'user', content: prompt }
   ];
 
-  const response = await callOpenAI(messages, 0.7);
+  const response = await callAzureOpenAI(messages, 0.7, 1500);
   
   try {
-    // Try to parse as JSON, fallback to text if it fails
     return JSON.parse(response);
   } catch {
-    return { recommendations: response };
+    return { career_pathways: [], summary: response };
   }
 };
 
 /**
- * Analyze skill gaps for a target role
+ * Analyze skill gaps between current and target role
  * @param {Array} currentSkills - User's current skills
- * @param {string} targetRole - Target position
- * @param {Array} requiredSkills - Skills needed for target role
+ * @param {string} targetRole - Desired role
+ * @param {Array} requiredSkills - Skills required for target role
  * @returns {Promise} Skill gap analysis
  */
 export const analyzeSkillGap = async (currentSkills, targetRole, requiredSkills) => {
   const prompt = `
-Analyze the skill gap for transitioning to: ${targetRole}
+Analyze the skill gap for career transition at PSA.
 
 Current Skills:
-${currentSkills.map(skill => `- ${skill.skill_name}`).join('\n')}
+${currentSkills.map(skill => `- ${skill.skill_name} (Level: ${skill.proficiency || 'N/A'})`).join('\n')}
 
-Required Skills for ${targetRole}:
+Target Role: ${targetRole}
+
+Required Skills for Target Role:
 ${requiredSkills.map(skill => `- ${skill}`).join('\n')}
 
-Please provide:
-1. **Skill Gap Summary**: Overall assessment of readiness
-2. **Missing Skills**: Critical skills that need to be developed
-3. **Existing Strengths**: Skills already possessed that are valuable
-4. **Learning Priority**: Order in which to acquire missing skills
-5. **Development Plan**: Specific actions and resources
+Provide:
+1. **Critical Gaps**: Skills missing that are essential for the role
+2. **Priority Ranking**: Which skills to develop first (High/Medium/Low priority)
+3. **Current Strengths**: Skills the user already has that align with the target role
+4. **Development Plan**: Step-by-step plan to close gaps
+5. **Estimated Timeline**: Time needed to be role-ready
 
-Return as structured JSON.
+Return as JSON:
+{
+  "critical_gaps": ["skill1", "skill2"],
+  "priority_skills": [
+    {"skill": "name", "priority": "High", "current_level": 2, "target_level": 4}
+  ],
+  "strengths": ["skill1", "skill2"],
+  "development_plan": "detailed plan",
+  "timeline": "6-12 months"
+}
 `;
 
   const messages = [
-    { role: 'system', content: 'You are a skills development expert for PSA.' },
+    { role: 'system', content: 'You are a skills development advisor for PSA.' },
     { role: 'user', content: prompt }
   ];
 
-  return await callOpenAI(messages, 0.6);
+  const response = await callAzureOpenAI(messages, 0.6, 1200);
+  
+  try {
+    return JSON.parse(response);
+  } catch {
+    return { analysis: response };
+  }
 };
 
-//AI Chatbot - tbd
-//Mental Wellbeing - tbd
-//Chat analysis for Mental Wellbeing - tbd
+/**
+ * AI chatbot for conversational support
+ * @param {string} userMessage - Current user message
+ * @param {Array} conversationHistory - Previous messages
+ * @param {object} context - User context (profile, mood, etc.)
+ * @returns {Promise} AI chatbot response
+ */
+export const chatWithAI = async (userMessage, conversationHistory = [], context = {}) => {
+  const systemPrompt = `
+You are PSA Pathways AI Assistant, a supportive and empathetic career development chatbot for PSA employees.
+
+Your role:
+- Provide career guidance and mentorship
+- Support employee wellbeing and mental health
+- Answer questions about learning opportunities
+- Offer encouragement and motivation
+- Help with work-life balance advice
+
+Context about the user:
+${context.userName ? `- Name: ${context.userName}` : ''}
+${context.role ? `- Role: ${context.role}` : ''}
+${context.department ? `User's department: ${context.department}` : ''}
+${context.mood ? `- Current mood: ${context.mood}` : ''}
+
+Be warm, professional, and supportive. Keep responses concise (2-3 paragraphs max).
+`;
+
+  const history = Array.isArray(conversationHistory) ? conversationHistory : [];
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text
+    })),
+    { role: 'user', content: userMessage }
+  ];
+
+  return await callAzureOpenAI(messages, 0.8, 500);
+};
 
 /**
- * Predict leadership potential based on multiple factors
+ * Predict leadership potential using behavioral and performance data
+ * @param {object} userProfile - User profile
  * @param {object} performanceData - Performance metrics
- * @param {object} behavioralData - Behavioral assessments
- * @param {object} engagementData - Engagement scores
- * @returns {Promise} Leadership prediction and insights
+ * @param {object} engagementData - Engagement metrics
+ * @returns {Promise} Leadership potential analysis
  */
-export const predictLeadershipPotential = async (performanceData, behavioralData, engagementData) => {
+export const predictLeadershipPotential = async (userProfile, performanceData, engagementData) => {
   const prompt = `
-Assess leadership potential based on:
+Analyze leadership potential for PSA employee.
 
-Performance Metrics:
-- Performance Rating: ${performanceData.rating}/5
-- Projects Completed: ${performanceData.projects_completed}
-- Quality Score: ${performanceData.quality_score}/100
+Employee Profile:
+- Name: ${userProfile.first_name} ${userProfile.last_name}
+- Current Role: ${userProfile.user_role}
+- Years at PSA: ${userProfile.years_at_company}
+- Department: ${userProfile.department}
 
-Behavioral Indicators:
-- Team Collaboration: ${behavioralData.collaboration}/5
-- Initiative Taking: ${behavioralData.initiative}/5
-- Problem Solving: ${behavioralData.problem_solving}/5
-- Communication: ${behavioralData.communication}/5
+Performance Data:
+- Recent Projects: ${performanceData.projects_completed || 0}
+- Team Collaboration Score: ${performanceData.collaboration_score || 'N/A'}/10
+- Innovation Initiatives: ${performanceData.innovation_count || 0}
+- Problem-Solving Rating: ${performanceData.problem_solving || 'N/A'}/10
 
 Engagement Data:
-- Engagement Score: ${engagementData.score}/100
-- Mentorship Activity: ${engagementData.mentorship_active ? 'Yes' : 'No'}
+- Mentorship: ${engagementData.is_mentor ? 'Active Mentor' : 'Not Currently Mentoring'}
+- Training Completed: ${engagementData.training_hours || 0} hours
+- Peer Recognition: ${engagementData.peer_recognition || 0} endorsements
+- Cross-functional Experience: ${engagementData.cross_functional ? 'Yes' : 'No'}
 - Learning Hours: ${engagementData.learning_hours} hours
 
 Provide:
@@ -155,7 +241,15 @@ Provide:
 4. **Readiness Assessment**: Timeline to leadership readiness
 5. **Recommended Actions**: Specific steps to enhance leadership potential
 
-Format as structured JSON with numeric scores.
+Format as structured JSON:
+{
+  "leadership_score": 78,
+  "category": "High Potential / Emerging Leader / Ready Now",
+  "strengths": ["strength1", "strength2"],
+  "development_areas": ["area1", "area2"],
+  "readiness": "12-18 months to leadership role",
+  "actions": ["action1", "action2"]
+}
 `;
 
   const messages = [
@@ -163,7 +257,7 @@ Format as structured JSON with numeric scores.
     { role: 'user', content: prompt }
   ];
 
-  const response = await callOpenAI(messages, 0.6);
+  const response = await callAzureOpenAI(messages, 0.6, 1000);
   
   try {
     return JSON.parse(response);
@@ -181,7 +275,7 @@ Format as structured JSON with numeric scores.
  */
 export const recommendMentors = async (userProfile, userInterests, availableMentors) => {
   const prompt = `
-Find the best mentor matches for this employee:
+Find the best mentor matches for this PSA employee:
 
 User Profile:
 - Name: ${userProfile.first_name} ${userProfile.last_name}
@@ -207,11 +301,11 @@ Please analyze and provide:
 3. **What You'll Learn**: Specific skills/knowledge you can gain from each mentor
 4. **Compatibility Score**: Based on interests, department overlap, and experience gap
 
-Return as structured JSON with this format:
+Return as structured JSON:
 {
   "matches": [
     {
-      "mentor_id": "index from list",
+      "mentor_index": 0,
       "mentor_name": "name",
       "match_percentage": 95,
       "reasoning": "why good match",
@@ -223,16 +317,16 @@ Return as structured JSON with this format:
       }
     }
   ],
-  "recommendations": "overall advice for mentorship"
+  "recommendations": "overall mentorship advice"
 }
 `;
 
   const messages = [
-    { role: 'system', content: 'You are an expert mentorship matching advisor for PSA, using data-driven insights to create meaningful mentor-mentee relationships.' },
+    { role: 'system', content: 'You are an expert mentorship matching advisor for PSA.' },
     { role: 'user', content: prompt }
   ];
 
-  const response = await callOpenAI(messages, 0.7);
+  const response = await callAzureOpenAI(messages, 0.7, 1200);
   
   try {
     return JSON.parse(response);
@@ -242,79 +336,40 @@ Return as structured JSON with this format:
 };
 
 /**
- * Chat with AI for general career guidance
- * @param {string} userMessage - User's message
- * @param {Array} conversationHistory - Previous messages for context
- * @returns {Promise} AI response
- */
-export const chatWithAI = async (userMessage, conversationHistory = []) => {
-  const messages = [
-    { 
-      role: 'system', 
-      content: `You are a helpful AI career assistant for PSA (Port of Singapore Authority) employees. 
-      
-Your role is to:
-- Provide friendly, practical career advice
-- Help with career planning and skill development
-- Offer mental wellbeing support
-- Suggest internal mobility opportunities
-- Recommend courses and learning paths
-
-Be conversational, empathetic, and supportive. Keep responses concise but helpful.
-If asked about stress or mental health, be caring and suggest resources like the Employee Assistance Program.` 
-    },
-    ...conversationHistory,
-    { role: 'user', content: userMessage }
-  ];
-
-  try {
-    const response = await callOpenAI(messages, 0.8);
-    return response;
-  } catch (error) {
-    console.error('Chat error:', error);
-    throw error;
-  }
-};
-
-/**
- * Get personalized course recommendations based on skill gaps
- * @param {Array} currentSkills - User's current skills
- * @param {Array} targetSkills - Skills user wants to develop
- * @param {string} careerGoal - User's career objective
+ * Recommend personalized learning courses
+ * @param {Array} skillGaps - Skills to develop
+ * @param {string} careerGoal - Career objective
+ * @param {string} learningStyle - Preferred learning style
  * @returns {Promise} Course recommendations
  */
-export const recommendCourses = async (currentSkills, targetSkills, careerGoal) => {
+export const recommendCourses = async (skillGaps, careerGoal, learningStyle = 'mixed') => {
   const prompt = `
-Recommend learning courses for career development:
+Recommend learning courses for PSA employee.
 
-Current Skills:
-${currentSkills.map(skill => `- ${skill.skill_name}`).join('\n')}
-
-Target Skills to Develop:
-${targetSkills.map(skill => `- ${skill}`).join('\n')}
+Skills to Develop:
+${skillGaps.map(skill => `- ${skill}`).join('\n')}
 
 Career Goal: ${careerGoal}
+Learning Style: ${learningStyle}
 
-Please recommend:
-1. **Priority Courses**: 5 courses to take first (most important)
-2. **Learning Path**: Suggested order to take courses
-3. **Time Estimate**: How long each course takes
-4. **Platforms**: Where to find these courses (Coursera, Udemy, LinkedIn Learning, etc.)
-5. **Expected Outcome**: What skills you'll gain from each
-
-Focus on practical, industry-recognized courses. Include both technical and soft skills.
+Provide course recommendations that:
+- Are available online (Coursera, Udemy, LinkedIn Learning, edX, etc.)
+- Range from beginner to advanced
+- Include both technical and soft skills
+- Are relevant to maritime logistics industry
 
 Return as JSON:
 {
   "courses": [
     {
       "title": "course name",
-      "platform": "Coursera/Udemy/etc",
+      "provider": "Coursera/Udemy/etc",
       "duration": "4 weeks",
       "difficulty": "Beginner/Intermediate/Advanced",
       "priority": 1,
       "skills_gained": ["skill1", "skill2"],
-      "cost": "Free/Paid"
+      "cost": "Free/Paid",
+      "url": "course URL if available"
     }
   ],
   "learning_path": "suggested order and rationale",
@@ -327,7 +382,7 @@ Return as JSON:
     { role: 'user', content: prompt }
   ];
 
-  const response = await callOpenAI(messages, 0.7);
+  const response = await callAzureOpenAI(messages, 0.7, 1500);
   
   try {
     return JSON.parse(response);
@@ -336,15 +391,53 @@ Return as JSON:
   }
 };
 
+/**
+ * Analyze wellbeing and provide mental health support suggestions
+ * @param {object} moodData - Recent mood check-ins
+ * @param {object} stressIndicators - Stress level data
+ * @returns {Promise} Wellbeing recommendations
+ */
+export const analyzeWellbeing = async (moodData, stressIndicators) => {
+  const prompt = `
+Analyze employee wellbeing and provide supportive recommendations.
+
+Recent Mood Data:
+${JSON.stringify(moodData, null, 2)}
+
+Stress Indicators:
+${JSON.stringify(stressIndicators, null, 2)}
+
+Provide:
+1. **Wellbeing Assessment**: Overall mental health status
+2. **Concerns**: Any red flags or patterns to address
+3. **Recommendations**: Practical steps to improve wellbeing
+4. **Resources**: PSA resources or external support options
+5. **Follow-up**: When to check in again
+
+Be empathetic, non-judgmental, and supportive. Format as JSON.
+`;
+
+  const messages = [
+    { role: 'system', content: 'You are a compassionate wellbeing advisor focused on employee mental health and work-life balance.' },
+    { role: 'user', content: prompt }
+  ];
+
+  const response = await callAzureOpenAI(messages, 0.8, 800);
+  
+  try {
+    return JSON.parse(response);
+  } catch {
+    return { assessment: response };
+  }
+};
+
+// Export all functions
 export default {
   getCareerRecommendations,
   analyzeSkillGap,
-  //getChatbotResponse,
-  //analyzeWellbeing,
+  chatWithAI,
   predictLeadershipPotential,
   recommendMentors,
-  chatWithAI,
   recommendCourses,
-  //analyzeSentiment
+  analyzeWellbeing
 };
-

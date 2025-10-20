@@ -1,156 +1,130 @@
 import React, { useState } from 'react';
-import { ArrowUp, ArrowDown, TrendingUp, Award, Target, Lock, CheckCircle } from 'lucide-react';
-import { analyzeSkillGap } from '../../services/openaiService';
+import { TrendingUp, Target, Loader, CheckCircle, AlertCircle, Book, Award } from 'lucide-react';
+import { analyzeSkillGap, recommendCourses } from '../../services/openaiService';
 
-const CareerLift = ({ currentRole, department, skills = [] }) => {
-  const [selectedFloor, setSelectedFloor] = useState(null);
+const CareerLift = ({ currentRole, currentLevel, department, userData, skills = [] }) => {
   const [creatingPlan, setCreatingPlan] = useState(false);
   const [planError, setPlanError] = useState(null);
+  const [developmentPlan, setDevelopmentPlan] = useState(null);
+  const [selectedFloor, setSelectedFloor] = useState(null);
 
-  // Career levels (floors)
-  const careerLevels = [
+  // Career floors (levels)
+  const careerFloors = [
     {
-      floor: 7,
-      level: 'Executive',
-      icon: '👑',
-      title: 'Chief / Executive Director',
-      yearsExperience: '15+',
-      keySkills: ['Strategic Vision', 'Board Management', 'Corporate Governance'],
-      salary: '$250K - $400K+',
-      color: '#ffd700',
-      unlocked: false
+      level: 7,
+      title: 'C-Suite Executive',
+      roles: ['Chief Technology Officer', 'Chief Operations Officer', 'Chief Financial Officer'],
+      keySkills: ['Strategic Vision', 'Executive Leadership', 'Board Relations', 'M&A'],
+      yearsExp: '20+',
+      description: 'Top executive leadership'
     },
     {
-      floor: 6,
-      level: 'Director',
-      icon: '🎯',
-      title: 'Senior Director / Director',
-      yearsExperience: '12-15',
-      keySkills: ['Business Strategy', 'P&L Management', 'Executive Leadership'],
-      salary: '$180K - $250K',
-      color: '#A296ca',
-      unlocked: false
+      level: 6,
+      title: 'Director',
+      roles: ['Director of Engineering', 'Director of Operations', 'Finance Director'],
+      keySkills: ['Dept Management', 'Budget Planning', 'Strategic Planning', 'Cross-functional Leadership'],
+      yearsExp: '15-20',
+      description: 'Department-level leadership'
     },
     {
-      floor: 5,
-      level: 'Manager',
-      icon: '📊',
-      title: 'Senior Manager / Manager',
-      yearsExperience: '8-12',
-      keySkills: ['Team Leadership', 'Budget Management', 'Strategic Planning'],
-      salary: '$120K - $180K',
-      color: '#8b7fb8',
-      unlocked: false
+      level: 5,
+      title: 'Senior Manager',
+      roles: ['Senior Engineering Manager', 'Senior Operations Manager', 'Senior Program Manager'],
+      keySkills: ['Team Leadership', 'Project Management', 'Stakeholder Management', 'Strategy'],
+      yearsExp: '10-15',
+      description: 'Leading multiple teams'
     },
     {
-      floor: 4,
-      level: 'Assistant Manager',
-      icon: '🎖️',
-      title: 'Assistant Manager / Team Lead',
-      yearsExperience: '5-8',
-      keySkills: ['Project Management', 'Team Coordination', 'Stakeholder Management'],
-      salary: '$80K - $120K',
-      color: '#7a6fa0',
-      unlocked: true
+      level: 4,
+      title: 'Manager / Team Lead',
+      roles: ['Engineering Manager', 'Team Lead', 'Product Manager'],
+      keySkills: ['People Management', 'Planning', 'Communication', 'Mentoring'],
+      yearsExp: '7-10',
+      description: 'Managing teams and projects'
     },
     {
-      floor: 3,
-      level: 'Senior',
-      icon: '⭐',
-      title: 'Senior Specialist / Senior Engineer',
-      yearsExperience: '3-5',
-      keySkills: ['Advanced Technical', 'Mentoring', 'Process Improvement'],
-      salary: '$60K - $90K',
-      color: '#695f88',
-      unlocked: true
+      level: 3,
+      title: 'Senior Professional',
+      roles: ['Senior Engineer', 'Senior Analyst', 'Senior Specialist'],
+      keySkills: ['Technical Expertise', 'Mentoring', 'Complex Projects', 'Problem Solving'],
+      yearsExp: '5-7',
+      description: 'Expert contributor level'
     },
     {
-      floor: 2,
-      level: 'Junior',
-      icon: '💼',
-      title: 'Specialist / Engineer',
-      yearsExperience: '1-3',
-      keySkills: ['Core Technical', 'Problem Solving', 'Collaboration'],
-      salary: '$45K - $65K',
-      color: '#584f70',
-      unlocked: true
+      level: 2,
+      title: 'Mid-Level Professional',
+      roles: ['Software Engineer', 'Business Analyst', 'Operations Specialist'],
+      keySkills: ['Technical Skills', 'Collaboration', 'Initiative', 'Delivery'],
+      yearsExp: '2-5',
+      description: 'Independent contributor'
     },
     {
-      floor: 1,
-      level: 'Intern',
-      icon: '🎓',
-      title: 'Intern / Graduate Trainee',
-      yearsExperience: '0-1',
-      keySkills: ['Learning', 'Foundational Skills', 'Initiative'],
-      salary: '$30K - $45K',
-      color: '#473f58',
-      unlocked: true
+      level: 1,
+      title: 'Junior / Entry Level',
+      roles: ['Associate Engineer', 'Junior Analyst', 'Graduate Trainee'],
+      keySkills: ['Learning', 'Foundations', 'Teamwork', 'Adaptability'],
+      yearsExp: '0-2',
+      description: 'Starting your career'
     }
   ];
 
-  // Calculate skill match percentage
-  const calculateSkillMatch = (levelSkills) => {
-    if (!skills || skills.length === 0) return 0;
-    const matchCount = levelSkills.filter(skill => 
-      skills.some(userSkill => 
-        userSkill.skill_name?.toLowerCase().includes(skill.toLowerCase()) ||
-        skill.toLowerCase().includes(userSkill.skill_name?.toLowerCase())
-      )
-    ).length;
-    return Math.round((matchCount / levelSkills.length) * 100);
-  };
-
-  // Get current floor based on role
   const getCurrentFloor = () => {
     if (!currentRole) return 1;
     const roleLower = currentRole.toLowerCase();
     
-    if (roleLower.includes('executive') || roleLower.includes('chief')) return 7;
+    if (roleLower.includes('chief') || roleLower.includes('cto') || roleLower.includes('cfo')) return 7;
     if (roleLower.includes('director')) return 6;
-    if (roleLower.includes('manager') && !roleLower.includes('assistant')) return 5;
-    if (roleLower.includes('assistant manager') || roleLower.includes('team lead')) return 4;
+    if (roleLower.includes('senior manager')) return 5;
+    if (roleLower.includes('manager') && !roleLower.includes('assistant')) return 4;
     if (roleLower.includes('senior')) return 3;
-    if (roleLower.includes('intern') || roleLower.includes('graduate')) return 1;
-    return 2; // Default to Junior
+    if (roleLower.includes('intern') || roleLower.includes('graduate') || roleLower.includes('trainee')) return 1;
+    return 2;
   };
 
   const handleCreateDevelopmentPlan = async (floorData) => {
     try {
-        setCreatingPlan(true);
-        setPlanError(null);
-        
-        console.log('Creating development plan for:', floorData.title);
-        
-        // Get user's current skills
-        const currentSkills = skills || [];
-        
-        // Target role and required skills
-        const targetRole = floorData.title;
-        const requiredSkills = floorData.keySkills || [];
-        
-        // Call AI service to analyze skill gap
-        const analysis = await analyzeSkillGap(currentSkills, targetRole, requiredSkills);
-        
-        console.log('AI Analysis received:', analysis);
-        
-        // Navigate to a development plan page or show modal with results
-        // For now, I just log it and show an alert -> test tmr
-        alert('Development plan created! Check console for details.');
-        
-        // TODO: Navigate to development plan page with the analysis
-        // navigate('/development-plan', { state: { analysis, targetRole } });
-        
+      setCreatingPlan(true);
+      setPlanError(null);
+      setSelectedFloor(floorData);
+      
+      console.log('🎯 Creating development plan for:', floorData.title);
+      
+      // Call AI to analyze skill gap
+      const analysis = await analyzeSkillGap(
+        skills,
+        floorData.title,
+        floorData.keySkills
+      );
+      
+      console.log('✅ Skill gap analysis:', analysis);
+
+      // Get course recommendations based on missing skills
+      const missingSkills = analysis.critical_gaps || analysis.priority_skills || [];
+      const courses = await recommendCourses(
+        skills,
+        missingSkills,
+        floorData.title
+      );
+
+      console.log('📚 Course recommendations:', courses);
+      
+      setDevelopmentPlan({
+        targetRole: floorData.title,
+        analysis: analysis,
+        courses: courses,
+        targetLevel: floorData.level
+      });
+      
     } catch (error) {
-        console.error('Error creating development plan:', error);
-        setPlanError(error.message);
+      console.error('❌ Error creating development plan:', error);
+      setPlanError(error.message);
     } finally {
-        setCreatingPlan(false);
+      setCreatingPlan(false);
     }
-    };
+  };
 
   const currentFloor = getCurrentFloor();
-
-
+  const completionPercentage = ((currentFloor - 1) / 6) * 100;
 
   return (
     <div style={{
@@ -181,478 +155,502 @@ const CareerLift = ({ currentRole, department, skills = [] }) => {
         <div style={{
           marginTop: '1rem',
           padding: '0.75rem 1.5rem',
-          background: 'rgba(162, 150, 202, 0.2)',
+          background: 'rgba(162, 150, 202, 0.15)',
           borderRadius: '8px',
-          display: 'inline-block'
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem'
         }}>
-          <span style={{ color: '#A296ca', fontWeight: '600' }}>
-            📍 Current Floor: {currentFloor} - {careerLevels.find(l => l.floor === currentFloor)?.level}
+          <Target size={18} color="#A296ca" />
+          <span style={{ color: '#fff', fontWeight: '600' }}>
+            Current: Floor {currentFloor} - {careerFloors.find(f => f.level === currentFloor)?.title}
           </span>
         </div>
       </div>
 
-      {/* Main Lift Area */}
-      <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '2rem' }}>
-        {/* Left - Lift Shaft */}
+      {/* Progress Bar */}
+      <div style={{
+        width: '100%',
+        height: '8px',
+        background: 'rgba(162, 150, 202, 0.2)',
+        borderRadius: '4px',
+        marginBottom: '2rem',
+        overflow: 'hidden'
+      }}>
         <div style={{
-          background: 'linear-gradient(180deg, #0a0a1a 0%, #2b1d5a 100%)',
-          borderRadius: '12px',
-          padding: '1rem',
-          border: '3px solid #A296ca',
-          position: 'relative',
-          boxShadow: 'inset 0 0 20px rgba(162, 150, 202, 0.3)'
-        }}>
-          {/* Lift Shaft Lines */}
-          <div style={{
-            position: 'absolute',
-            left: '50%',
-            top: '5%',
-            bottom: '5%',
-            width: '2px',
-            background: 'repeating-linear-gradient(to bottom, #A296ca 0px, #A296ca 10px, transparent 10px, transparent 20px)',
-            opacity: 0.3
-          }} />
-
-          {/* Floor Buttons */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column-reverse',
-            gap: '1.5rem',
-            position: 'relative',
-            zIndex: 1
-          }}>
-            {careerLevels.map((level) => {
-              const isCurrentFloor = level.floor === currentFloor;
-              const isUnlocked = level.floor <= currentFloor + 2;
-              const isSelected = level.floor === selectedFloor;
-
-              return (
-                <div key={level.floor} style={{ position: 'relative' }}>
-                  {/* Lift Car Indicator */}
-                  {isCurrentFloor && (
-                    <div style={{
-                      position: 'absolute',
-                      left: '-50px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      fontSize: '2rem',
-                      animation: 'float 2s ease-in-out infinite'
-                    }}>
-                      🛗
-                    </div>
-                  )}
-
-                  {/* Floor Button */}
-                  <button
-                    onClick={() => isUnlocked && setSelectedFloor(level.floor)}
-                    disabled={!isUnlocked}
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      background: isCurrentFloor 
-                        ? `linear-gradient(135deg, ${level.color} 0%, #fff 100%)`
-                        : isSelected
-                        ? level.color
-                        : isUnlocked
-                        ? 'rgba(162, 150, 202, 0.2)'
-                        : 'rgba(50, 50, 50, 0.3)',
-                      border: isCurrentFloor || isSelected 
-                        ? `3px solid #fff` 
-                        : isUnlocked
-                        ? '2px solid #A296ca'
-                        : '2px solid #555',
-                      borderRadius: '12px',
-                      cursor: isUnlocked ? 'pointer' : 'not-allowed',
-                      transition: 'all 0.3s ease',
-                      position: 'relative',
-                      color: isCurrentFloor ? '#000' : '#fff',
-                      fontWeight: isCurrentFloor ? '700' : '600',
-                      opacity: isUnlocked ? 1 : 0.4,
-                      boxShadow: isCurrentFloor 
-                        ? '0 0 20px rgba(162, 150, 202, 0.8)' 
-                        : 'none'
-                    }}
-                  >
-                    {!isUnlocked && (
-                      <Lock size={16} style={{
-                        position: 'absolute',
-                        top: '8px',
-                        right: '8px',
-                        color: '#888'
-                      }} />
-                    )}
-                    {isCurrentFloor && (
-                      <CheckCircle size={16} style={{
-                        position: 'absolute',
-                        top: '8px',
-                        right: '8px',
-                        color: '#000'
-                      }} />
-                    )}
-                    <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>
-                      {level.icon}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', opacity: 0.9 }}>
-                      Floor {level.floor}
-                    </div>
-                    <div style={{ fontSize: '0.65rem', fontWeight: '600' }}>
-                      {level.level}
-                    </div>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right - Floor Details */}
-        <div>
-          {selectedFloor ? (
-            (() => {
-              const level = careerLevels.find(l => l.floor === selectedFloor);
-              const skillMatch = calculateSkillMatch(level.keySkills);
-              const isCurrentFloor = level.floor === currentFloor;
-
-              return (
-                <div style={{
-                  background: 'linear-gradient(135deg, #2b1d5a 0%, #1a1a2e 100%)',
-                  borderRadius: '12px',
-                  padding: '2rem',
-                  border: `2px solid ${level.color}`,
-                  boxShadow: `0 0 30px ${level.color}40`
-                }}>
-                  {/* Floor Header */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '1.5rem',
-                    paddingBottom: '1rem',
-                    borderBottom: `2px solid ${level.color}`
-                  }}>
-                    <div>
-                      <div style={{
-                        fontSize: '3rem',
-                        marginBottom: '0.5rem'
-                      }}>
-                        {level.icon}
-                      </div>
-                      <h3 style={{
-                        fontSize: '1.8rem',
-                        fontWeight: '700',
-                        color: level.color,
-                        margin: 0
-                      }}>
-                        {level.title}
-                      </h3>
-                      <div style={{
-                        fontSize: '0.9rem',
-                        color: '#aaa',
-                        marginTop: '0.25rem'
-                      }}>
-                        Floor {level.floor} • {level.yearsExperience} years experience
-                      </div>
-                    </div>
-                    {isCurrentFloor && (
-                      <div style={{
-                        padding: '0.75rem 1.25rem',
-                        background: level.color,
-                        color: '#000',
-                        borderRadius: '8px',
-                        fontWeight: '700',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}>
-                        <CheckCircle size={20} />
-                        YOU ARE HERE
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Salary Range */}
-                  <div style={{
-                    padding: '1.25rem',
-                    background: 'rgba(162, 150, 202, 0.1)',
-                    borderRadius: '8px',
-                    marginBottom: '1.5rem',
-                    border: '2px solid rgba(162, 150, 202, 0.3)'
-                  }}>
-                    <div style={{
-                      fontSize: '0.8rem',
-                      color: '#A296ca',
-                      fontWeight: '600',
-                      marginBottom: '0.5rem'
-                    }}>
-                      💰 SALARY RANGE
-                    </div>
-                    <div style={{
-                      fontSize: '1.5rem',
-                      fontWeight: '700',
-                      color: level.color
-                    }}>
-                      {level.salary}
-                    </div>
-                  </div>
-
-                  {/* Key Skills Required */}
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <div style={{
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      color: '#A296ca',
-                      marginBottom: '1rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem'
-                    }}>
-                      <Target size={20} />
-                      Key Skills Required
-                    </div>
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: '0.75rem'
-                    }}>
-                      {level.keySkills.map((skill, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: '0.75rem 1rem',
-                            background: 'rgba(162, 150, 202, 0.2)',
-                            borderRadius: '8px',
-                            border: '2px solid rgba(162, 150, 202, 0.4)',
-                            fontSize: '0.9rem',
-                            fontWeight: '500',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem'
-                          }}
-                        >
-                          <Award size={16} color={level.color} />
-                          {skill}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Skill Match Indicator */}
-                  <div style={{
-                    padding: '1.25rem',
-                    background: skillMatch >= 70 
-                      ? 'rgba(76, 175, 80, 0.2)' 
-                      : skillMatch >= 40
-                      ? 'rgba(255, 152, 0, 0.2)'
-                      : 'rgba(244, 67, 54, 0.2)',
-                    borderRadius: '8px',
-                    border: `2px solid ${
-                      skillMatch >= 70 
-                        ? 'rgba(76, 175, 80, 0.5)' 
-                        : skillMatch >= 40
-                        ? 'rgba(255, 152, 0, 0.5)'
-                        : 'rgba(244, 67, 54, 0.5)'
-                    }`
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.75rem'
-                    }}>
-                      <span style={{
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        color: '#fff'
-                      }}>
-                        Your Skill Match
-                      </span>
-                      <span style={{
-                        fontSize: '1.5rem',
-                        fontWeight: '700',
-                        color: skillMatch >= 70 ? '#4CAF50' : skillMatch >= 40 ? '#FF9800' : '#F44336'
-                      }}>
-                        {skillMatch}%
-                      </span>
-                    </div>
-                    <div style={{
-                      width: '100%',
-                      height: '12px',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      borderRadius: '6px',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        width: `${skillMatch}%`,
-                        height: '100%',
-                        background: skillMatch >= 70 
-                          ? 'linear-gradient(90deg, #4CAF50, #8BC34A)' 
-                          : skillMatch >= 40
-                          ? 'linear-gradient(90deg, #FF9800, #FFC107)'
-                          : 'linear-gradient(90deg, #F44336, #FF5722)',
-                        transition: 'width 1s ease'
-                      }} />
-                    </div>
-                  </div>
-
-                  {/* Navigation Buttons */}
-                  {!isCurrentFloor && (
-                    <div style={{
-                      marginTop: '1.5rem',
-                      display: 'flex',
-                      gap: '1rem'
-                    }}>
-                      <button style={{
-                        flex: 1,
-                        padding: '1rem',
-                        background: level.color,
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontWeight: '700',
-                        fontSize: '1rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem'
-                      }}>
-                        <TrendingUp size={20} />
-                        Create Development Plan
-                      </button>
-                    </div>
-                  )}
-                  {/* Development Plan Button */}
-                    <button
-                    onClick={() => {
-                        const currentFloorData = careerLevels.find(l => l.floor === selectedFloor);
-                        handleCreateDevelopmentPlan(currentFloorData);
-                    }}
-                    disabled={creatingPlan}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        background: creatingPlan 
-                        ? 'rgba(162, 150, 202, 0.3)' 
-                        : 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontWeight: '700',
-                        fontSize: '1rem',
-                        cursor: creatingPlan ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.5rem',
-                        transition: 'all 0.3s ease',
-                        marginTop: '1rem'
-                    }}
-                    >
-                    {creatingPlan ? (
-                        <>
-                        <div style={{
-                            width: '16px',
-                            height: '16px',
-                            border: '2px solid #000',
-                            borderTop: '2px solid transparent',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite'
-                        }} />
-                        Creating Plan...
-                        </>
-                    ) : (
-                        <>
-                        <Target size={20} />
-                        Create Development Plan
-                        </>
-                    )}
-                    </button>
-
-                    {planError && (
-                    <div style={{
-                        marginTop: '1rem',
-                        padding: '0.75rem',
-                        background: 'rgba(255, 59, 48, 0.2)',
-                        border: '1px solid #ff3b30',
-                        borderRadius: '8px',
-                        color: '#ff3b30',
-                        fontSize: '0.9rem'
-                    }}>
-                        {planError}
-                    </div>
-                    )}
-
-                </div>
-              );
-            })()
-          ) : (
-            <div style={{
-              background: 'rgba(162, 150, 202, 0.1)',
-              borderRadius: '12px',
-              padding: '3rem',
-              border: '2px dashed #A296ca',
-              textAlign: 'center',
-              minHeight: '400px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🛗</div>
-              <h3 style={{
-                fontSize: '1.5rem',
-                color: '#A296ca',
-                marginBottom: '1rem'
-              }}>
-                Select a Floor
-              </h3>
-              <p style={{
-                fontSize: '1rem',
-                color: '#aaa',
-                maxWidth: '400px'
-              }}>
-                Click on any floor button to explore career opportunities and requirements at that level
-              </p>
-            </div>
-          )}
-        </div>
+          height: '100%',
+          background: 'linear-gradient(90deg, #A296ca 0%, #9B59B6 100%)',
+          width: `${completionPercentage}%`,
+          transition: 'width 0.5s ease'
+        }} />
       </div>
 
-      {/* Legend */}
       <div style={{
-        marginTop: '2rem',
-        padding: '1.25rem',
-        background: 'rgba(162, 150, 202, 0.1)',
-        borderRadius: '8px',
-        display: 'flex',
-        gap: '2rem',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        alignItems: 'center'
+        display: 'grid',
+        gridTemplateColumns: developmentPlan ? '1fr 1fr' : '1fr',
+        gap: '2rem'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <CheckCircle size={20} color="#A296ca" />
-          <span style={{ fontSize: '0.85rem', color: '#fff' }}>Your Current Floor</span>
+        {/* Career Floors */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {careerFloors.map((floor) => {
+            const isCurrent = floor.level === currentFloor;
+            const isPast = floor.level < currentFloor;
+            const isFuture = floor.level > currentFloor;
+
+            return (
+              <div
+                key={floor.level}
+                style={{
+                  padding: '1.5rem',
+                  background: isCurrent
+                    ? 'linear-gradient(135deg, rgba(162, 150, 202, 0.3) 0%, rgba(155, 89, 182, 0.2) 100%)'
+                    : isPast
+                    ? 'rgba(76, 175, 80, 0.1)'
+                    : 'rgba(162, 150, 202, 0.05)',
+                  borderRadius: '12px',
+                  border: isCurrent
+                    ? '3px solid #A296ca'
+                    : isPast
+                    ? '2px solid rgba(76, 175, 80, 0.3)'
+                    : '2px solid rgba(162, 150, 202, 0.2)',
+                  position: 'relative',
+                  cursor: isFuture ? 'pointer' : 'default',
+                  transition: 'all 0.3s ease',
+                  opacity: isPast ? 0.7 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (isFuture) {
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                    e.currentTarget.style.borderColor = '#A296ca';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (isFuture) {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.borderColor = 'rgba(162, 150, 202, 0.2)';
+                  }
+                }}
+              >
+                {/* Floor Level Badge */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-12px',
+                  left: '20px',
+                  background: isCurrent ? '#A296ca' : isPast ? '#4CAF50' : '#666',
+                  color: '#fff',
+                  padding: '0.25rem 0.75rem',
+                  borderRadius: '20px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}>
+                  {isPast && <CheckCircle size={12} />}
+                  Floor {floor.level}
+                </div>
+
+                {/* Title and Description */}
+                <div style={{ marginTop: '0.5rem' }}>
+                  <h3 style={{
+                    fontSize: '1.3rem',
+                    fontWeight: '700',
+                    color: isCurrent ? '#A296ca' : '#fff',
+                    marginBottom: '0.5rem'
+                  }}>
+                    {floor.title}
+                  </h3>
+                  <p style={{
+                    fontSize: '0.85rem',
+                    color: '#aaa',
+                    marginBottom: '0.75rem'
+                  }}>
+                    {floor.description} • {floor.yearsExp} years experience
+                  </p>
+                </div>
+
+                {/* Example Roles */}
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <p style={{
+                    fontSize: '0.8rem',
+                    color: '#888',
+                    marginBottom: '0.5rem',
+                    fontWeight: '600'
+                  }}>
+                    Example Roles:
+                  </p>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem'
+                  }}>
+                    {floor.roles.map((role, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.3rem 0.6rem',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          borderRadius: '6px',
+                          color: '#ddd'
+                        }}
+                      >
+                        {role}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Key Skills */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <p style={{
+                    fontSize: '0.8rem',
+                    color: '#888',
+                    marginBottom: '0.5rem',
+                    fontWeight: '600'
+                  }}>
+                    Key Skills:
+                  </p>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem'
+                  }}>
+                    {floor.keySkills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.3rem 0.6rem',
+                          background: 'rgba(162, 150, 202, 0.2)',
+                          borderRadius: '6px',
+                          color: '#A296ca'
+                        }}
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                {isFuture && (
+                  <button
+                    onClick={() => handleCreateDevelopmentPlan(floor)}
+                    disabled={creatingPlan}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      background: creatingPlan
+                        ? 'rgba(162, 150, 202, 0.3)'
+                        : 'var(--psa-secondary)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: creatingPlan ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    {creatingPlan ? (
+                      <>
+                        <Loader className="spin" size={16} />
+                        Creating Plan...
+                      </>
+                    ) : (
+                      <>
+                        <Target size={16} />
+                        Create Development Plan
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {isCurrent && (
+                  <div style={{
+                    padding: '0.75rem',
+                    background: 'rgba(162, 150, 202, 0.2)',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    color: '#A296ca',
+                    fontWeight: '600',
+                    fontSize: '0.9rem'
+                  }}>
+                    ⭐ You are here
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+
+        {/* Development Plan Panel */}
+        {developmentPlan && (
           <div style={{
-            width: '20px',
-            height: '20px',
-            background: 'rgba(162, 150, 202, 0.4)',
-            borderRadius: '4px',
-            border: '2px solid #A296ca'
-          }} />
-          <span style={{ fontSize: '0.85rem', color: '#fff' }}>Accessible Floors</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Lock size={20} color="#888" />
-          <span style={{ fontSize: '0.85rem', color: '#fff' }}>Locked (Develop More)</span>
-        </div>
+            position: 'sticky',
+            top: '20px',
+            height: 'fit-content'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #2b1d5a 0%, #1d161e 100%)',
+              padding: '2rem',
+              borderRadius: '12px',
+              border: '3px solid #A296ca'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'start',
+                marginBottom: '1.5rem'
+              }}>
+                <div>
+                  <h3 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#A296ca',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Development Plan
+                  </h3>
+                  <p style={{ fontSize: '0.9rem', color: '#aaa', margin: 0 }}>
+                    Path to: {developmentPlan.targetRole}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDevelopmentPlan(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#aaa',
+                    cursor: 'pointer',
+                    fontSize: '1.5rem'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {planError && (
+                <div style={{
+                  padding: '1rem',
+                  background: 'rgba(244, 67, 54, 0.1)',
+                  borderRadius: '8px',
+                  border: '2px solid rgba(244, 67, 54, 0.3)',
+                  color: '#F44336',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <AlertCircle size={18} />
+                  {planError}
+                </div>
+              )}
+
+              {/* Skill Gap Analysis */}
+              {developmentPlan.analysis && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    color: '#fff',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Target size={18} />
+                    Skill Gap Analysis
+                  </h4>
+                  
+                  {developmentPlan.analysis.critical_gaps && (
+                    <div style={{
+                      padding: '1rem',
+                      background: 'rgba(255, 193, 7, 0.1)',
+                      borderRadius: '8px',
+                      marginBottom: '0.75rem',
+                      borderLeft: '4px solid #FFC107'
+                    }}>
+                      <p style={{
+                        fontSize: '0.85rem',
+                        color: '#FFC107',
+                        marginBottom: '0.5rem',
+                        fontWeight: '600'
+                      }}>
+                        Critical Skills to Develop:
+                      </p>
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem'
+                      }}>
+                        {developmentPlan.analysis.critical_gaps.map((skill, idx) => (
+                          <span
+                            key={idx}
+                            style={{
+                              fontSize: '0.8rem',
+                              padding: '0.4rem 0.7rem',
+                              background: 'rgba(255, 193, 7, 0.2)',
+                              borderRadius: '6px',
+                              color: '#FFC107'
+                            }}
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {developmentPlan.analysis.strengths && (
+                    <div style={{
+                      padding: '1rem',
+                      background: 'rgba(76, 175, 80, 0.1)',
+                      borderRadius: '8px',
+                      borderLeft: '4px solid #4CAF50'
+                    }}>
+                      <p style={{
+                        fontSize: '0.85rem',
+                        color: '#4CAF50',
+                        marginBottom: '0.5rem',
+                        fontWeight: '600'
+                      }}>
+                        Your Existing Strengths:
+                      </p>
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem'
+                      }}>
+                        {developmentPlan.analysis.strengths.map((skill, idx) => (
+                          <span
+                            key={idx}
+                            style={{
+                              fontSize: '0.8rem',
+                              padding: '0.4rem 0.7rem',
+                              background: 'rgba(76, 175, 80, 0.2)',
+                              borderRadius: '6px',
+                              color: '#4CAF50'
+                            }}
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Course Recommendations */}
+              {developmentPlan.courses && developmentPlan.courses.courses && (
+                <div>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    color: '#fff',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    <Book size={18} />
+                    Recommended Courses
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                    maxHeight: '400px',
+                    overflowY: 'auto'
+                  }}>
+                    {developmentPlan.courses.courses.slice(0, 5).map((course, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '1rem',
+                          background: 'rgba(162, 150, 202, 0.1)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(162, 150, 202, 0.3)'
+                        }}
+                      >
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'start',
+                          marginBottom: '0.5rem'
+                        }}>
+                          <h5 style={{
+                            fontSize: '0.9rem',
+                            fontWeight: '600',
+                            color: '#fff',
+                            margin: 0
+                          }}>
+                            {course.title}
+                          </h5>
+                          {course.priority && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              padding: '0.2rem 0.5rem',
+                              background: '#A296ca',
+                              color: '#fff',
+                              borderRadius: '12px',
+                              fontWeight: '600'
+                            }}>
+                              Priority {course.priority}
+                            </span>
+                          )}
+                        </div>
+                        <p style={{
+                          fontSize: '0.75rem',
+                          color: '#aaa',
+                          margin: '0.25rem 0'
+                        }}>
+                          {course.provider} • {course.duration} • {course.difficulty}
+                        </p>
+                        {course.skills_gained && (
+                          <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '0.3rem',
+                            marginTop: '0.5rem'
+                          }}>
+                            {course.skills_gained.slice(0, 3).map((skill, i) => (
+                              <span
+                                key={i}
+                                style={{
+                                  fontSize: '0.7rem',
+                                  padding: '0.2rem 0.4rem',
+                                  background: 'rgba(255, 255, 255, 0.1)',
+                                  borderRadius: '4px',
+                                  color: '#ddd'
+                                }}
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(-50%) translateX(0); }
-          50% { transform: translateY(-50%) translateX(-5px); }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .spin {
+          animation: spin 1s linear infinite;
         }
       `}</style>
     </div>
