@@ -1,0 +1,27 @@
+{
+  "rewrites": [
+    {
+      "source": "/openai/:path*",
+      "destination": "https://psacodesprint2025.azure-api.net/openai/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/openai/:path*",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, api-key"
+        }
+      ]
+    }
+  ]
+}
