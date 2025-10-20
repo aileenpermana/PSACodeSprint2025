@@ -1,37 +1,21 @@
-import '../styles/PSALogo.css';
+// frontend/src/components/PSALogo.jsx
+import React from 'react';
+import logoImage from '../image (3).png';  // Import the image
 
-const PSALogo = () => (
-  <div className="psa-logo-container">
-    <svg 
-      width="60" 
-      height="60" 
-      viewBox="0 0 100 100" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle 
-        cx="50" 
-        cy="50" 
-        r="45" 
-        stroke="#A296ca" 
-        strokeWidth="3" 
-        fill="none"
+const PSALogo = () => {
+  return (
+    <div className="psa-logo-container">
+      <img 
+        src={logoImage} 
+        alt="PSA Logo" 
+        style={{
+          width: '180px',
+          height: '180px',
+          objectFit: 'contain'
+        }}
       />
-      <path 
-        d="M30 50 Q50 30 70 50 Q50 70 30 50" 
-        stroke="#A296ca" 
-        strokeWidth="3" 
-        fill="none"
-      />
-      <circle 
-        cx="50" 
-        cy="50" 
-        r="8" 
-        fill="#A296ca"
-      />
-    </svg>
-    <span className="psa-logo-text">PSA</span>
-  </div>
-);
+    </div>
+  );
+};
 
 export default PSALogo;
