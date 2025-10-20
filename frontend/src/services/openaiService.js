@@ -163,13 +163,6 @@ Return as JSON:
   }
 };
 
-/**
- * AI chatbot for conversational support
- * @param {string} userMessage - Current user message
- * @param {Array} conversationHistory - Previous messages
- * @param {object} context - User context (profile, mood, etc.)
- * @returns {Promise} AI chatbot response
- */
 export const chatWithAI = async (userMessage, conversationHistory = [], context = {}) => {
   const systemPrompt = `
 You are PSA Pathways AI Assistant, a supportive and empathetic career development chatbot for PSA employees.
@@ -190,14 +183,25 @@ ${context.mood ? `- Current mood: ${context.mood}` : ''}
 Be warm, professional, and supportive. Keep responses concise (2-3 paragraphs max).
 `;
 
-  const history = Array.isArray(conversationHistory) ? conversationHistory : [];
+  // Fix: Handle both formats of conversation history
+  const formattedHistory = Array.isArray(conversationHistory) 
+    ? conversationHistory.map(msg => {
+        // Handle both {role, content} and {sender, text} formats
+        if (msg.role && msg.content) {
+          return { role: msg.role, content: msg.content };
+        } else if (msg.sender && msg.text) {
+          return {
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.text
+          };
+        }
+        return msg;
+      })
+    : [];
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...conversationHistory.map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'assistant',
-      content: msg.text
-    })),
+    ...formattedHistory,
     { role: 'user', content: userMessage }
   ];
 
