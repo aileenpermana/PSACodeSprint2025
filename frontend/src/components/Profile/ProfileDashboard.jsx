@@ -14,12 +14,51 @@ import {
   Heart,
   Edit,
   Plus,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import Layout from '../Shared/layout';
 import { getCurrentUser } from '../../services/supabaseClient';
 import { getCompleteUserProfile, addUserSkill } from '../../services/dataService';
 import '../../styles/maritime-theme.css';
+
+const skillsByDepartment = {
+  'Information Technology': [
+    'Cloud Architecture',
+    'Network Security',
+    'Software Development',
+    'Database Management',
+    'IT Support'
+  ],
+  'Operations': [
+    'Logistics Management',
+    'Process Optimization',
+    'Quality Control',
+    'Supply Chain',
+    'Terminal Operations'
+  ],
+  'Engineering': [
+    'Automation Systems',
+    'Mechanical Engineering',
+    'Electrical Systems',
+    'Project Management',
+    'Technical Design'
+  ],
+  'Finance': [
+    'Financial Analysis',
+    'Budgeting',
+    'Accounting',
+    'Treasury Management',
+    'Financial Reporting'
+  ],
+  'Human Resources': [
+    'Talent Management',
+    'Recruitment',
+    'Training & Development',
+    'Employee Relations',
+    'Compensation & Benefits'
+  ]
+};
 
 const ProfileDashboard = () => {
   const navigate = useNavigate();
@@ -385,59 +424,72 @@ const ProfileDashboard = () => {
                 bottom: 0,
                 background: 'rgba(0, 0, 0, 0.7)',
                 display: 'flex',
-                alignItems: 'center',
                 justifyContent: 'center',
+                alignItems: 'center',
                 zIndex: 1000
               }}>
                 <div className="card" style={{ 
-                  maxWidth: '500px', 
+                  padding: '2rem', 
+                  maxWidth: '600px', 
                   width: '90%',
-                  maxHeight: '90vh',
-                  overflow: 'auto'
+                  maxHeight: '80vh',
+                  overflowY: 'auto'
                 }}>
-                  <div className="card-header">
-                    <h2 className="card-title">Add New Skill</h2>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <h2 style={{ fontSize: '1.5rem' }}>Add New Skill</h2>
+                    <button
+                      onClick={() => {
+                        setShowAddSkillModal(false);
+                        setNewSkill({ skill_name: '', category: '', proficiency_level: 3 });
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--psa-white)'
+                      }}
+                    >
+                      <X size={24} />
+                    </button>
                   </div>
-                  <div className="card-body">
-                    <div style={{ display: 'grid', gap: '1rem' }}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                          Skill Name
-                        </label>
-                        <input
-                          type="text"
-                          value={newSkill.skill_name}
-                          onChange={(e) => setNewSkill(prev => ({
-                            ...prev,
-                            skill_name: e.target.value
-                          }))}
-                          className="input"
-                          placeholder="e.g., JavaScript, Project Management"
-                        />
-                      </div>
 
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
-                          Category
-                        </label>
+                  <div className="form-group">
+                    <label className="form-label">Department/Function Area</label>
+                    <select
+                      value={newSkill.category}
+                      onChange={(e) => setNewSkill(prev => ({ ...prev, category: e.target.value, skill_name: '' }))}
+                      className="form-input form-select"
+                    >
+                      <option value="">Select a department</option>
+                      {Object.keys(skillsByDepartment).map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {newSkill.category && (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label">Skill</label>
                         <select
-                          value={newSkill.category}
-                          onChange={(e) => setNewSkill(prev => ({
-                            ...prev,
-                            category: e.target.value
-                          }))}
-                          className="input"
+                          value={newSkill.skill_name}
+                          onChange={(e) => setNewSkill(prev => ({ ...prev, skill_name: e.target.value }))}
+                          className="form-input form-select"
                         >
-                          <option value="">Select Category</option>
-                          <option value="Technical">Technical</option>
-                          <option value="Leadership">Leadership</option>
-                          <option value="Communication">Communication</option>
-                          <option value="Domain Knowledge">Domain Knowledge</option>
+                          <option value="">Select a skill</option>
+                          {skillsByDepartment[newSkill.category]?.map(skill => (
+                            <option key={skill} value={skill}>{skill}</option>
+                          ))}
                         </select>
                       </div>
 
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                      <div className="form-group">
+                        <label className="form-label">
                           Proficiency Level: {newSkill.proficiency_level}/5
                         </label>
                         <input
@@ -445,53 +497,47 @@ const ProfileDashboard = () => {
                           min="1"
                           max="5"
                           value={newSkill.proficiency_level}
-                          onChange={(e) => setNewSkill(prev => ({
-                            ...prev,
-                            proficiency_level: parseInt(e.target.value)
-                          }))}
-                          style={{ width: '100%' }}
+                          onChange={(e) => setNewSkill(prev => ({ ...prev, proficiency_level: parseInt(e.target.value) }))}
+                          style={{ width: '100%', cursor: 'pointer' }}
                         />
                         <div style={{ 
                           display: 'flex', 
                           justifyContent: 'space-between',
-                          fontSize: '0.8rem',
-                          color: '#888',
-                          marginTop: '0.25rem'
+                          fontSize: '0.85rem',
+                          marginTop: '0.5rem',
+                          opacity: 0.7
                         }}>
                           <span>Beginner</span>
+                          <span>Intermediate</span>
                           <span>Expert</span>
                         </div>
                       </div>
-                    </div>
+                    </>
+                  )}
 
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: '1rem', 
-                      marginTop: '1.5rem',
-                      paddingTop: '1.5rem',
-                      borderTop: '1px solid rgba(162, 150, 202, 0.2)'
-                    }}>
-                      <button
-                        onClick={() => setShowAddSkillModal(false)}
-                        className="btn btn-outline"
-                        style={{ flex: 1 }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleAddSkill}
-                        className="btn btn-primary"
-                        style={{ flex: 1 }}
-                        disabled={!newSkill.skill_name}
-                      >
-                        Add Skill
-                      </button>
-                    </div>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                    <button
+                      onClick={() => {
+                        setShowAddSkillModal(false);
+                        setNewSkill({ skill_name: '', category: '', proficiency_level: 3 });
+                      }}
+                      className="btn"
+                      style={{ flex: 1, background: 'var(--psa-accent)' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddSkill}
+                      className="btn btn-primary"
+                      style={{ flex: 1 }}
+                      disabled={!newSkill.skill_name || !newSkill.category}
+                    >
+                      Add Skill
+                    </button>
                   </div>
                 </div>
               </div>
             )}
-
             {/* Learning Progress */}
             <div className="card">
               <div className="card-header">

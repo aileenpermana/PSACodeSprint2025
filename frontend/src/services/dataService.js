@@ -149,6 +149,53 @@ export const addUserSkill = async (userId, skillData) => {
 };
 
 /**
+ * Delete user skill
+ * @param {string} userId - User ID
+ * @param {string} skillName - Skill name to delete
+ * @returns {Promise} Deletion result
+ */
+export const deleteUserSkill = async (userId, skillName) => {
+  try {
+    const { error } = await supabase
+      .from('user_skills')
+      .delete()
+      .eq('user_id', userId)
+      .eq('skill_name', skillName);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    console.error('Delete skill error:', error.message);
+    return { error: error.message };
+  }
+};
+
+/**
+ * Update user skill proficiency
+ * @param {string} userId - User ID
+ * @param {string} skillName - Skill name
+ * @param {number} proficiencyLevel - New proficiency level (1-5)
+ * @returns {Promise} Update result
+ */
+export const updateUserSkillProficiency = async (userId, skillName, proficiencyLevel) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_skills')
+      .update({ proficiency_level: proficiencyLevel })
+      .eq('user_id', userId)
+      .eq('skill_name', skillName)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Update skill proficiency error:', error.message);
+    return { data: null, error: error.message };
+  }
+};
+
+/**
  * Update skill proficiency level
  * @param {string} skillId - Skill ID
  * @param {number} newLevel - New proficiency level (1-5)
@@ -994,6 +1041,8 @@ export default {
   
   // Skills
   addUserSkill,
+  deleteUserSkill,
+  updateUserSkillProficiency,
   updateSkillProficiency,
   getAllAvailableSkills,
   
