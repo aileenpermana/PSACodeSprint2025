@@ -109,6 +109,7 @@ const ProfileSetup = () => {
     try {
       setLoading(true);
       const user = await getCurrentUser();
+      
       if (!user) {
         setLoading(false);
         return;
@@ -128,7 +129,11 @@ const ProfileSetup = () => {
           user_role: data.user_role || '',
           department: data.department || '',
           hire_date: data.hire_date || '',
-          selectedSkills: data.skills?.map(s => s.skill_name) || [],
+          selectedSkills: data.skills?.map(s => ({
+            skill_name: s.skill_name,
+            function_area: s.function_area || data.department,
+            proficiency_level: s.proficiency_level || 3
+          })) || [],
           interests: data.interests || []
         }));
 
@@ -174,6 +179,43 @@ const ProfileSetup = () => {
         : [...prev.interests, interest]
     }));
   };
+
+  // Toggle skill with proficiency
+const toggleSkillWithProficiency = (skillName, department) => {
+  setFormData(prev => {
+    const isSelected = prev.selectedSkills.some(s => s.skill_name === skillName);
+    
+    if (isSelected) {
+      // Remove skill
+      return {
+        ...prev,
+        selectedSkills: prev.selectedSkills.filter(s => s.skill_name !== skillName)
+      };
+    } else {
+      // Add skill with default proficiency
+      return {
+        ...prev,
+        selectedSkills: [...prev.selectedSkills, {
+          skill_name: skillName,
+          function_area: department,
+          proficiency_level: 3
+        }]
+      };
+    }
+  });
+};
+
+// Update skill proficiency
+const updateSkillProficiency = (skillName, proficiency) => {
+  setFormData(prev => ({
+    ...prev,
+    selectedSkills: prev.selectedSkills.map(skill =>
+      skill.skill_name === skillName
+        ? { ...skill, proficiency_level: proficiency }
+        : skill
+    )
+  }));
+};
 
   // Validate current step
   const validateStep = () => {
@@ -235,7 +277,6 @@ const ProfileSetup = () => {
     try {
       setLoading(true);
       
-      // Get current user
       const user = await getCurrentUser();
       if (!user) {
         navigate('/signin');
@@ -243,36 +284,34 @@ const ProfileSetup = () => {
       }
 
       if (existingProfile) {
-      // UPDATE existing profile
-      const { error: updateError } = await updateUserProfile(user.id, {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        employee_id: formData.employee_id,
-        user_role: formData.user_role,
-        department: formData.department,
-        hire_date: formData.hire_date || existingProfile.hire_date
-      });
-
-      if (updateError) {
-        console.error('Error updating profile:', updateError);
-        return;
-      }
-
-      // Update skills - remove old, add new
-      const existingSkills = existingProfile.skills?.map(s => s.skill_name) || [];
-      const newSkills = formData.selectedSkills.filter(s => !existingSkills.includes(s));
-      
-      for (const skill of newSkills) {
-        await addUserSkill(user.id, {
-          function_area: formData.department,
-          specialization: formData.department,
-          skill_name: skill,
-          proficiency_level: 3
+        // UPDATE existing profile
+        const { error: updateError } = await updateUserProfile(user.id, {
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          employee_id: formData.employee_id,
+          user_role: formData.user_role,
+          department: formData.department,
+          hire_date: formData.hire_date || existingProfile.hire_date,
+          interests: formData.interests
         });
-      }
-    } else {
 
-        // Create user profile
+        if (updateError) {
+          console.error('Error updating profile:', updateError);
+          alert('Failed to update profile');
+          return;
+        }
+
+        // Update skills - add new ones
+        for (const skill of formData.selectedSkills) {
+          await addUserSkill(user.id, {
+            function_area: skill.function_area,
+            specialization: skill.function_area,
+            skill_name: skill.skill_name,
+            proficiency_level: skill.proficiency_level
+          });
+        }
+      } else {
+        // CREATE new profile
         const profileData = {
           email: user.email,
           first_name: formData.first_name,
@@ -280,34 +319,38 @@ const ProfileSetup = () => {
           employee_id: formData.employee_id,
           user_role: formData.user_role,
           department: formData.department,
-          hire_date: formData.hire_date || new Date().toISOString()
+          hire_date: formData.hire_date || new Date().toISOString(),
+          interests: formData.interests
         };
 
         const { error: profileError } = await createUserProfile(user.id, profileData);
         if (profileError) {
           console.error('Error creating profile:', profileError);
+          alert('Failed to create profile');
           return;
         }
 
         // Add selected skills
         for (const skill of formData.selectedSkills) {
           await addUserSkill(user.id, {
-            function_area: formData.department,
-            specialization: formData.department,
-            skill_name: skill,
-            proficiency_level: 3 // Default proficiency
+            function_area: skill.function_area,
+            specialization: skill.function_area,
+            skill_name: skill.skill_name,
+            proficiency_level: skill.proficiency_level
           });
         }
-
-        // Navigate to dashboard
-        navigate('/dashboard');
-        
-      }} catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
       }
-    };
+
+      // Navigate to dashboard
+      navigate('/dashboard');
+      
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Render step content
   const renderStepContent = () => {
@@ -417,47 +460,111 @@ const ProfileSetup = () => {
               Your Skills 🎯
             </h2>
             <p style={{ marginBottom: '2rem', opacity: 0.9 }}>
-              Select the skills you currently have (select at least 1)
+              Select skills from any department and rate your proficiency (1-5)
             </p>
 
-            {formData.department && skillsByDepartment[formData.department] ? (
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '1rem'
-              }}>
-                {skillsByDepartment[formData.department].map(skill => (
-                  <button
-                    key={skill}
-                    onClick={() => toggleSkill(skill)}
-                    style={{
-                      padding: '1rem',
-                      background: formData.selectedSkills.includes(skill) 
-                        ? 'var(--psa-secondary)' 
-                        : 'var(--psa-accent)',
-                      color: formData.selectedSkills.includes(skill) 
-                        ? 'var(--psa-dark)' 
-                        : 'var(--psa-white)',
-                      border: `2px solid ${formData.selectedSkills.includes(skill) ? 'var(--psa-secondary)' : 'transparent'}`,
-                      borderRadius: 'var(--radius-md)',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      fontSize: '0.95rem',
-                      fontWeight: '500',
-                      transition: 'all var(--transition-base)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <span>{skill}</span>
-                    {formData.selectedSkills.includes(skill) && <Check size={18} />}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p style={{ textAlign: 'center', padding: '2rem', opacity: 0.8 }}>
-                Please select a department in the previous step
+            <div style={{ marginBottom: '2rem' }}>
+              {Object.entries(skillsByDepartment).map(([dept, skills]) => (
+                <div key={dept} style={{ marginBottom: '2rem' }}>
+                  <h3 style={{ 
+                    fontSize: '1.2rem', 
+                    marginBottom: '1rem',
+                    color: 'var(--psa-secondary)',
+                    fontWeight: '600'
+                  }}>
+                    {dept}
+                  </h3>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                    gap: '1rem'
+                  }}>
+                    {skills.map(skill => {
+                      const selectedSkill = formData.selectedSkills.find(s => s.skill_name === skill);
+                      const isSelected = !!selectedSkill;
+                      const proficiency = selectedSkill?.proficiency_level || 3;
+
+                      return (
+                        <div
+                          key={skill}
+                          style={{
+                            padding: '1rem',
+                            background: isSelected 
+                              ? 'var(--psa-secondary)' 
+                              : 'var(--psa-accent)',
+                            color: isSelected 
+                              ? 'var(--psa-dark)' 
+                              : 'var(--psa-white)',
+                            border: `2px solid ${isSelected ? 'var(--psa-secondary)' : 'transparent'}`,
+                            borderRadius: 'var(--radius-md)',
+                            transition: 'all var(--transition-base)'
+                          }}
+                        >
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: isSelected ? '0.75rem' : 0
+                          }}>
+                            <span style={{ fontWeight: '500' }}>{skill}</span>
+                            <button
+                              onClick={() => toggleSkillWithProficiency(skill, dept)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '0.25rem',
+                                color: 'inherit'
+                              }}
+                            >
+                              {isSelected ? <Check size={20} /> : '+'}
+                            </button>
+                          </div>
+                          
+                          {isSelected && (
+                            <div style={{ marginTop: '0.5rem' }}>
+                              <label style={{ 
+                                fontSize: '0.85rem', 
+                                display: 'block',
+                                marginBottom: '0.5rem',
+                                opacity: 0.9
+                              }}>
+                                Proficiency: {proficiency}/5
+                              </label>
+                              <input
+                                type="range"
+                                min="1"
+                                max="5"
+                                value={proficiency}
+                                onChange={(e) => updateSkillProficiency(skill, parseInt(e.target.value))}
+                                style={{
+                                  width: '100%',
+                                  cursor: 'pointer'
+                                }}
+                              />
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between',
+                                fontSize: '0.75rem',
+                                marginTop: '0.25rem',
+                                opacity: 0.7
+                              }}>
+                                <span>Beginner</span>
+                                <span>Expert</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {formData.selectedSkills.length === 0 && (
+              <p style={{ textAlign: 'center', padding: '1rem', opacity: 0.7 }}>
+                Select at least one skill to continue
               </p>
             )}
           </div>
