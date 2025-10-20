@@ -36,28 +36,37 @@ const MentorFinder = () => {
     filterMentors();
   }, [searchQuery, selectedDepartment, mentors]);
 
-  const loadData = async () => {
+    const loadData = async () => {
     try {
-      setLoading(true);
-      const user = await getCurrentUser();
-      if (!user) {
+        setLoading(true);
+        const user = await getCurrentUser();
+        if (!user) {
         navigate('/signin');
         return;
-      }
+        }
 
-      const { data: profile } = await getCompleteUserProfile(user.id);
-      setUserData(profile);
+        const { data: profile } = await getCompleteUserProfile(user.id);
+        setUserData(profile);
 
-      const { data: mentorList } = await findMentors(user.id);
-      setMentors(mentorList || []);
-      setFilteredMentors(mentorList || []);
+        // Pass user's interests to find mentors
+        const userInterests = profile?.interests || [];
+        const { data: mentorList, error } = await findMentors(user.id, userInterests);
+        
+        if (error) {
+        console.error('Error fetching mentors:', error);
+        alert('Unable to load mentors. Please try again.');
+        } else {
+        setMentors(mentorList || []);
+        setFilteredMentors(mentorList || []);
+        }
 
     } catch (error) {
-      console.error('Error loading mentor data:', error);
+        console.error('Error loading mentor data:', error);
+        alert('Failed to load data. Please refresh the page.');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+    };
 
   const filterMentors = () => {
     let filtered = [...mentors];
@@ -80,40 +89,57 @@ const MentorFinder = () => {
     setFilteredMentors(filtered);
   };
 
-  const handleAIMatching = async () => {
+    const handleAIMatching = async () => {
     try {
-      setAiMatching(true);
-      const userInterests = userData?.interests || [];
-      const recommendations = await recommendMentors(userData, userInterests, mentors);
-      setAiRecommendations(recommendations);
-      
-      if (recommendations.matches) {
-        const sortedMentors = [...mentors].sort((a, b) => {
-          const matchA = recommendations.matches.find(m => 
-            m.mentor_name.includes(a.first_name)
-          )?.match_percentage || 0;
-          const matchB = recommendations.matches.find(m => 
-            m.mentor_name.includes(b.first_name)
-          )?.match_percentage || 0;
-          return matchB - matchA;
+        setAiMatching(true);
+        const userInterests = userData?.interests || [];
+        const recommendations = await recommendMentors(userData, userInterests, mentors);
+        setAiRecommendations(recommendations);
+        
+        if (recommendations?.matches && recommendations.matches.length > 0) {
+        // Create a map of mentor IDs to match scores for easier lookup
+        const matchScoreMap = new Map();
+        recommendations.matches.forEach(match => {
+            // Find the mentor by trying to match the name
+            const matchedMentor = mentors.find(m => {
+            const fullName = `${m.first_name} ${m.last_name}`.toLowerCase();
+            const mentorName = match.mentor_name.toLowerCase();
+            return fullName.includes(mentorName) || mentorName.includes(fullName);
+            });
+            
+            if (matchedMentor) {
+            matchScoreMap.set(matchedMentor.id, match.match_percentage);
+            }
         });
+        
+        // Sort mentors by match score
+        const sortedMentors = [...mentors].sort((a, b) => {
+            const scoreA = matchScoreMap.get(a.id) || 0;
+            const scoreB = matchScoreMap.get(b.id) || 0;
+            return scoreB - scoreA;
+        });
+        
         setFilteredMentors(sortedMentors);
-      }
+        }
     } catch (error) {
-      console.error('AI matching error:', error);
-      alert('AI matching unavailable. Showing all mentors.');
+        console.error('AI matching error:', error);
+        alert('AI matching unavailable. Showing all mentors.');
     } finally {
-      setAiMatching(false);
+        setAiMatching(false);
     }
-  };
+    };
 
-  const getMentorMatchScore = (mentor) => {
+    const getMentorMatchScore = (mentor) => {
     if (!aiRecommendations?.matches) return null;
-    const match = aiRecommendations.matches.find(m =>
-      m.mentor_name.includes(mentor.first_name)
-    );
+    
+    const match = aiRecommendations.matches.find(m => {
+        const fullName = `${mentor.first_name} ${mentor.last_name}`.toLowerCase();
+        const mentorName = m.mentor_name.toLowerCase();
+        return fullName.includes(mentorName) || mentorName.includes(fullName);
+    });
+    
     return match?.match_percentage;
-  };
+    };
 
   const handleConnectMentor = (mentorId) => {
     navigate(`/mentor/${mentorId}`);

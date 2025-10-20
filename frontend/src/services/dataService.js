@@ -260,13 +260,27 @@ export const findMentors = async (userId, interests = []) => {
       .from('users')
       .select(`
         *,
-        user_skills (*)
+        user_skills (
+          skill_name,
+          proficiency_level,
+          function_area
+        )
       `)
-      .neq('id', userId)
-      .in('department', interests.length > 0 ? interests : ['IT', 'Operations', 'Finance', 'HR', 'Engineering']);
+      .neq('id', userId);
 
     if (error) throw error;
-    return { data, error: null };
+    
+    // Filter by interests if provided
+    let filteredData = data || [];
+    if (interests && interests.length > 0) {
+      filteredData = data.filter(user => 
+        interests.some(interest => 
+          user.department?.toLowerCase().includes(interest.toLowerCase())
+        )
+      );
+    }
+    
+    return { data: filteredData, error: null };
   } catch (error) {
     console.error('Find mentors error:', error.message);
     return { data: null, error: error.message };
