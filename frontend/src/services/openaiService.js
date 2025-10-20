@@ -274,6 +274,10 @@ Format as structured JSON:
  * @returns {Promise} Ranked mentor recommendations
  */
 export const recommendMentors = async (userProfile, userInterests, availableMentors) => {
+  if (!availableMentors || availableMentors.length === 0) {
+    return { matches: [], recommendations: 'No mentors available at this time.' };
+  }
+
   const prompt = `
 Find the best mentor matches for this PSA employee:
 
@@ -284,32 +288,32 @@ User Profile:
 - Experience: ${userProfile.years_at_company || 'Unknown'} years at PSA
 
 User's Interests & Goals:
-${userInterests.map(interest => `- ${interest}`).join('\n')}
+${userInterests && userInterests.length > 0 ? userInterests.map(interest => `- ${interest}`).join('\n') : '- Career development\n- Skill enhancement'}
 
 Available Mentors:
 ${availableMentors.map((mentor, idx) => `
 ${idx + 1}. ${mentor.first_name} ${mentor.last_name}
-   Role: ${mentor.user_role}
-   Department: ${mentor.department}
-   Skills: ${mentor.skills?.map(s => s.skill_name).join(', ') || 'Not specified'}
+   Role: ${mentor.user_role || 'Not specified'}
+   Department: ${mentor.department || 'Not specified'}
+   Skills: ${mentor.user_skills?.map(s => s.skill_name).join(', ') || mentor.skills?.map(s => s.skill_name).join(', ') || 'Not specified'}
    Experience: ${mentor.years_at_company || 'Unknown'} years
 `).join('\n')}
 
 Please analyze and provide:
-1. **Top 3 Mentor Matches**: Rank the best mentors with match percentage (0-100%)
+1. **Top 3-5 Mentor Matches**: Rank the best mentors with match percentage (0-100%)
 2. **Match Reasoning**: Why each mentor is a good fit
 3. **What You'll Learn**: Specific skills/knowledge you can gain from each mentor
 4. **Compatibility Score**: Based on interests, department overlap, and experience gap
 
-Return as structured JSON:
+Return as structured JSON with this EXACT format:
 {
   "matches": [
     {
       "mentor_index": 0,
-      "mentor_name": "name",
+      "mentor_name": "Full Name",
       "match_percentage": 95,
-      "reasoning": "why good match",
-      "learning_opportunities": ["skill1", "skill2"],
+      "reasoning": "Detailed explanation of why this is a good match",
+      "learning_opportunities": ["skill1", "skill2", "skill3"],
       "compatibility_factors": {
         "skill_overlap": 8,
         "interest_alignment": 9,
@@ -317,21 +321,25 @@ Return as structured JSON:
       }
     }
   ],
-  "recommendations": "overall mentorship advice"
+  "recommendations": "Overall mentorship advice for the user"
 }
 `;
 
   const messages = [
-    { role: 'system', content: 'You are an expert mentorship matching advisor for PSA.' },
+    { role: 'system', content: 'You are an expert mentorship matching advisor for PSA. Always return valid JSON.' },
     { role: 'user', content: prompt }
   ];
 
-  const response = await callAzureOpenAI(messages, 0.7, 1200);
-  
   try {
-    return JSON.parse(response);
-  } catch {
-    return { matches: [], recommendations: response };
+    const response = await callAzureOpenAI(messages, 0.7, 1200);
+    const parsed = JSON.parse(response);
+    return parsed;
+  } catch (error) {
+    console.error('Error in recommendMentors:', error);
+    return { 
+      matches: [], 
+      recommendations: 'Unable to generate AI recommendations at this time. Please try manual search.' 
+    };
   }
 };
 
