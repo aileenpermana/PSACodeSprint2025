@@ -1,9 +1,11 @@
+// frontend/src/components/Leadership/LeadershipPotential.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Star, Award, Target, BarChart3, CheckCircle, ArrowRight, Loader } from 'lucide-react';
 import Layout from '../Shared/layout';
 import { getCurrentUser } from '../../services/supabaseClient';
 import { getOrCalculateLeadership } from '../../services/dataService';
+import { normalizeLeadershipData, getScoreColor } from '../../utils/leadershipUtils';
 
 const LeadershipPotential = () => {
   const navigate = useNavigate();
@@ -23,21 +25,24 @@ const LeadershipPotential = () => {
         return;
       }
 
-      const { data } = await getOrCalculateLeadership(user.id);
-      setLeadershipData(data);
+      const { data, error } = await getOrCalculateLeadership(user.id);
+      
+      if (error) {
+        console.error('Leadership data error:', error);
+        setLeadershipData(null);
+        return;
+      }
+
+      // Normalize the data to handle both database and calculated formats
+      const normalized = normalizeLeadershipData(data);
+      console.log('Normalized leadership data:', normalized);
+      setLeadershipData(normalized);
     } catch (error) {
       console.error('Error loading leadership data:', error);
+      setLeadershipData(null);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getScoreColor = (score) => {
-    if (score >= 86) return '#4ade80';
-    if (score >= 76) return '#60a5fa';
-    if (score >= 61) return '#fbbf24';
-    if (score >= 41) return '#fb923c';
-    return '#f87171';
   };
 
   const getScoreLabel = (score) => {
@@ -66,7 +71,7 @@ const LeadershipPotential = () => {
     );
   }
 
-  if (!leadershipData) {
+  if (!leadershipData || !leadershipData.overall_score) {
     return (
       <Layout>
         <div style={{
@@ -150,7 +155,7 @@ const LeadershipPotential = () => {
                     fontWeight: '700',
                     color: scoreColor
                   }}>
-                    {leadershipData.overall_score}
+                    {Math.round(leadershipData.overall_score)}
                   </div>
                   <div style={{
                     fontSize: '0.9rem',
@@ -177,7 +182,7 @@ const LeadershipPotential = () => {
                 color: 'var(--psa-gray)',
                 marginBottom: '1rem'
               }}>
-                {leadershipData.interpretation}
+                {leadershipData.interpretation || 'Your leadership journey is progressing well. Continue developing your skills and engaging with the platform.'}
               </p>
               <div style={{
                 display: 'flex',
@@ -189,7 +194,7 @@ const LeadershipPotential = () => {
                     Readiness
                   </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-                    {leadershipData.readiness}
+                    {leadershipData.readiness || 'In Progress'}
                   </div>
                 </div>
                 <div>
@@ -197,7 +202,7 @@ const LeadershipPotential = () => {
                     Timeline
                   </div>
                   <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-                    {leadershipData.timeline}
+                    {leadershipData.timeline || 'Varies'}
                   </div>
                 </div>
               </div>
@@ -230,7 +235,7 @@ const LeadershipPotential = () => {
               color: '#60a5fa',
               marginBottom: '0.5rem'
             }}>
-                {Math.round(leadershipData.behavioral_score || leadershipData.breakdown?.behavioral?.score || 0)}
+              {Math.round(leadershipData.behavioral_score)}
             </div>
             <div style={{
               width: '100%',
@@ -240,7 +245,7 @@ const LeadershipPotential = () => {
               overflow: 'hidden'
             }}>
               <div style={{
-                width: `${Math.min(leadershipData.behavioral_score || leadershipData.breakdown?.behavioral?.score || 0, 100)}%`,
+                width: `${Math.min(leadershipData.behavioral_score, 100)}%`,
                 height: '100%',
                 background: '#60a5fa',
                 transition: 'width 1s ease'
@@ -266,7 +271,7 @@ const LeadershipPotential = () => {
               color: '#4ade80',
               marginBottom: '0.5rem'
             }}>
-                {Math.round(leadershipData.performance_score || leadershipData.breakdown?.performance?.score || 0)}
+              {Math.round(leadershipData.performance_score)}
             </div>
             <div style={{
               width: '100%',
@@ -276,7 +281,7 @@ const LeadershipPotential = () => {
               overflow: 'hidden'
             }}>
               <div style={{
-                width: `${Math.min(leadershipData.performance_score || leadershipData.breakdown?.performance?.score || 0, 100)}%`,
+                width: `${Math.min(leadershipData.performance_score, 100)}%`,
                 height: '100%',
                 background: '#4ade80',
                 transition: 'width 1s ease'
@@ -302,7 +307,7 @@ const LeadershipPotential = () => {
               color: '#fbbf24',
               marginBottom: '0.5rem'
             }}>
-                {Math.round(leadershipData.engagement_score || leadershipData.breakdown?.engagement?.score || 0)}
+              {Math.round(leadershipData.engagement_score)}
             </div>
             <div style={{
               width: '100%',
@@ -312,7 +317,7 @@ const LeadershipPotential = () => {
               overflow: 'hidden'
             }}>
               <div style={{
-                width: `${Math.min(leadershipData.engagement_score || leadershipData.breakdown?.engagement?.score || 0, 100)}%`,
+                width: `${Math.min(leadershipData.engagement_score, 100)}%`,
                 height: '100%',
                 background: '#fbbf24',
                 transition: 'width 1s ease'
@@ -346,29 +351,35 @@ const LeadershipPotential = () => {
               flexDirection: 'column',
               gap: '1rem'
             }}>
-              {leadershipData.strengths?.map((strength, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: '1rem',
-                    background: 'rgba(74, 222, 128, 0.1)',
-                    borderRadius: '8px',
-                    borderLeft: '4px solid #4ade80',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem'
-                  }}
-                >
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: '#4ade80',
-                    flexShrink: 0
-                  }} />
-                  <span style={{ fontSize: '1rem' }}>{strength}</span>
-                </div>
-              ))}
+              {leadershipData.strengths && leadershipData.strengths.length > 0 ? (
+                leadershipData.strengths.map((strength, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '1rem',
+                      background: 'rgba(74, 222, 128, 0.1)',
+                      borderRadius: '8px',
+                      borderLeft: '4px solid #4ade80',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem'
+                    }}
+                  >
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#4ade80',
+                      flexShrink: 0
+                    }} />
+                    <span style={{ fontSize: '1rem' }}>{strength}</span>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: 'var(--psa-gray)', textAlign: 'center', padding: '2rem 0' }}>
+                  Keep engaging with the platform to identify your strengths
+                </p>
+              )}
             </div>
           </div>
 
@@ -390,29 +401,35 @@ const LeadershipPotential = () => {
               flexDirection: 'column',
               gap: '1rem'
             }}>
-              {leadershipData.development_areas?.map((area, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: '1rem',
-                    background: 'rgba(251, 146, 60, 0.1)',
-                    borderRadius: '8px',
-                    borderLeft: '4px solid #fb923c',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem'
-                  }}
-                >
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: '#fb923c',
-                    flexShrink: 0
-                  }} />
-                  <span style={{ fontSize: '1rem' }}>{area}</span>
-                </div>
-              ))}
+              {leadershipData.development_areas && leadershipData.development_areas.length > 0 ? (
+                leadershipData.development_areas.map((area, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '1rem',
+                      background: 'rgba(251, 146, 60, 0.1)',
+                      borderRadius: '8px',
+                      borderLeft: '4px solid #fb923c',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem'
+                    }}
+                  >
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#fb923c',
+                      flexShrink: 0
+                    }} />
+                    <span style={{ fontSize: '1rem' }}>{area}</span>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: 'var(--psa-gray)', textAlign: 'center', padding: '2rem 0' }}>
+                  Complete more activities to identify development opportunities
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -435,45 +452,51 @@ const LeadershipPotential = () => {
             flexDirection: 'column',
             gap: '1rem'
           }}>
-            {leadershipData.recommendations?.map((rec, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: '1.25rem',
-                  background: 'var(--psa-accent)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(162, 150, 202, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem'
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  flex: 1
-                }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background: 'var(--psa-secondary)',
-                    color: 'var(--psa-dark)',
+            {leadershipData.recommendations && leadershipData.recommendations.length > 0 ? (
+              leadershipData.recommendations.map((rec, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '1.25rem',
+                    background: 'var(--psa-accent)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(162, 150, 202, 0.3)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: '700',
-                    flexShrink: 0
+                    justifyContent: 'space-between',
+                    gap: '1rem'
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    flex: 1
                   }}>
-                    {idx + 1}
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: 'var(--psa-secondary)',
+                      color: 'var(--psa-dark)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      flexShrink: 0
+                    }}>
+                      {idx + 1}
+                    </div>
+                    <span style={{ fontSize: '1rem', lineHeight: '1.5' }}>{rec}</span>
                   </div>
-                  <span style={{ fontSize: '1rem', lineHeight: '1.5' }}>{rec}</span>
+                  <ArrowRight size={20} color="var(--psa-secondary)" style={{ flexShrink: 0 }} />
                 </div>
-                <ArrowRight size={20} color="var(--psa-secondary)" style={{ flexShrink: 0 }} />
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ color: 'var(--psa-gray)', textAlign: 'center', padding: '2rem 0' }}>
+                Continue developing your profile to receive personalized recommendations
+              </p>
+            )}
           </div>
 
           <button
